@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="app-version" content="1.7.0">
+<meta name="app-version" content="1.8.0">
 <title>いろあわせパズル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -831,10 +831,86 @@ const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
 
 // ---------- みんなのランキング(Supabase) ----------
 // ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
-const APP_VERSION='1.7.0';
+const APP_VERSION='1.8.0';
 
 const SUPABASE_URL='https://jhrwpwpzxgxlvbartvqr.supabase.co/rest/v1/';
 const SUPABASE_KEY='sb_publishable_AaiMwnPXCL0oCfvQRqi9wA_x3Bl33da';
+const SUPABASE_AUTH_URL=SUPABASE_URL.replace('/rest/v1/','/auth/v1/');
+
+// ---------- 匿名サインイン(本人確認つきのRLSを通すため) ----------
+const AUTH_SESSION_KEY='puzzle-auth-session';
+function getStoredSession(){
+  try{
+    const raw=localStorage.getItem(AUTH_SESSION_KEY);
+    return raw?JSON.parse(raw):null;
+  }catch(e){ return null; }
+}
+function storeSession(session){
+  try{
+    const expiresAt=Date.now()+((session.expires_in||3600)*1000);
+    localStorage.setItem(AUTH_SESSION_KEY,JSON.stringify({
+      access_token:session.access_token,
+      refresh_token:session.refresh_token,
+      expires_at:expiresAt,
+      user_id:session.user && session.user.id
+    }));
+  }catch(e){}
+}
+async function signInAnonymously(){
+  const res=await fetchWithTimeout(`${SUPABASE_AUTH_URL}signup`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({})
+  },8000);
+  if(!res.ok) throw new Error('anonymous sign-in failed: '+res.status);
+  const data=await res.json();
+  storeSession(data);
+  return data;
+}
+async function refreshSession(refreshToken){
+  const res=await fetchWithTimeout(`${SUPABASE_AUTH_URL}token?grant_type=refresh_token`,{
+    method:'POST',
+    headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
+    body:JSON.stringify({refresh_token:refreshToken})
+  },8000);
+  if(!res.ok) throw new Error('refresh failed: '+res.status);
+  const data=await res.json();
+  storeSession(data);
+  return data;
+}
+let authSessionPromise=null;
+async function ensureAuthSession(){
+  const existing=getStoredSession();
+  if(existing && existing.expires_at>Date.now()+60000) return existing;
+  if(authSessionPromise) return authSessionPromise; // 同時に何度も呼ばれても1回だけ実行する
+  authSessionPromise=(async ()=>{
+    try{
+      if(existing && existing.refresh_token){
+        await refreshSession(existing.refresh_token);
+        return getStoredSession();
+      }
+    }catch(e){ console.error('セッション更新に失敗しました',e); }
+    try{
+      await signInAnonymously();
+      return getStoredSession();
+    }catch(e){
+      console.error('匿名サインインに失敗しました',e);
+      return null;
+    }
+  })();
+  const result=await authSessionPromise;
+  authSessionPromise=null;
+  return result;
+}
+async function authHeaders(extra){
+  const session=await ensureAuthSession();
+  const token=(session && session.access_token) || SUPABASE_KEY;
+  return {'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token, ...(extra||{})};
+}
+function getAuthUid(){
+  const s=getStoredSession();
+  return s ? s.user_id : null;
+}
 const NICKNAME_KEY='puzzle-nickname';
 const RANKING_OPTIN_KEY='puzzle-ranking-optin';
 const USER_ID_KEY='puzzle-user-id';
@@ -904,7 +980,7 @@ function generateFriendCode(){
 
 async function isFriendCodeTaken(code){
   try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?friend_code=eq.${encodeURIComponent(code)}&select=user_id`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?friend_code=eq.${encodeURIComponent(code)}&select=user_id`,{headers:await authHeaders()},6000);
     if(!res.ok) return false;
     const rows=await res.json();
     return rows.some(r=>r.user_id!==getUserId());
@@ -914,13 +990,25 @@ async function isFriendCodeTaken(code){
 // プロフィールを取得し、無ければ合言葉を自動発行して作成する(既存ユーザーの自動移行も兼ねる)
 async function ensureProfile(){
   const uid=getUserId();
+  await ensureAuthSession();
+  const authUid=getAuthUid();
   try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=eq.${uid}&select=*`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=eq.${uid}&select=*`,{headers:await authHeaders()},6000);
     if(res.ok){
       const rows=await res.json();
       if(rows.length){
         setFriendCode(rows[0].friend_code||'');
         setAgeGroup(rows[0].age_group||'');
+        // まだ本人確認用IDが紐付いてなければ、ここで紐付ける(既存ユーザーの自動移行)
+        if(!rows[0].auth_uid && authUid){
+          try{
+            await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=eq.${uid}`,{
+              method:'PATCH',
+              headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
+              body:JSON.stringify({auth_uid:authUid})
+            },6000);
+          }catch(e){ console.error('プロフィールの本人確認用ID紐付けに失敗しました',e); }
+        }
         return rows[0];
       }
     }
@@ -933,8 +1021,8 @@ async function ensureProfile(){
     try{
       const res=await fetchWithTimeout(`${SUPABASE_URL}profiles`,{
         method:'POST',
-        headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
-        body:JSON.stringify({user_id:uid,nickname,friend_code:code})
+        headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=representation'}),
+        body:JSON.stringify({user_id:uid,nickname,friend_code:code,auth_uid:authUid})
       },6000);
       if(res.ok){
         const rows=await res.json();
@@ -951,11 +1039,13 @@ async function ensureProfile(){
 
 async function upsertProfile(fields){
   const uid=getUserId();
+  await ensureAuthSession();
+  const authUid=getAuthUid();
   try{
     const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=eq.${uid}`,{
       method:'PATCH',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
-      body:JSON.stringify(fields)
+      headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=representation'}),
+      body:JSON.stringify({...fields,auth_uid:authUid})
     },6000);
     if(res.ok){
       const rows=await res.json();
@@ -965,8 +1055,8 @@ async function upsertProfile(fields){
   try{
     const res=await fetchWithTimeout(`${SUPABASE_URL}profiles`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
-      body:JSON.stringify({user_id:uid,...fields})
+      headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=representation'}),
+      body:JSON.stringify({user_id:uid,...fields,auth_uid:authUid})
     },6000);
     if(res.ok){ const rows=await res.json(); return rows[0]; }
   }catch(e){ console.error('プロフィール作成に失敗しました',e); }
@@ -979,7 +1069,7 @@ function generateInviteCode(){ return generateFriendCode(); }
 
 async function fetchMyGroups(){
   try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}group_members?user_id=eq.${getUserId()}&select=group_id,groups(id,name,invite_code)`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}group_members?user_id=eq.${getUserId()}&select=group_id,groups(id,name,invite_code)`,{headers:await authHeaders()},6000);
     if(!res.ok) return [];
     const rows=await res.json();
     return rows.map(r=>r.groups).filter(Boolean);
@@ -987,7 +1077,7 @@ async function fetchMyGroups(){
 }
 async function fetchGroupMemberIds(groupId){
   try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}group_members?group_id=eq.${groupId}&select=user_id`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}group_members?group_id=eq.${groupId}&select=user_id`,{headers:await authHeaders()},6000);
     if(!res.ok) return new Set();
     const rows=await res.json();
     return new Set(rows.map(r=>r.user_id));
@@ -1004,7 +1094,7 @@ async function fetchAllMyGroupMateIds(){
 }
 async function fetchUserIdsByAgeGroup(age){
   try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?age_group=eq.${age}&select=user_id`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?age_group=eq.${age}&select=user_id`,{headers:await authHeaders()},6000);
     if(!res.ok) return new Set();
     const rows=await res.json();
     return new Set(rows.map(r=>r.user_id));
@@ -1046,11 +1136,10 @@ async function supabaseInsertScore(nickname,diff,scoreVal,timeSec){
   try{
     await fetchWithTimeout(SUPABASE_URL+'scores',{
       method:'POST',
-      headers:{
-        'apikey':SUPABASE_KEY,
+      headers: await authHeaders({
         'Content-Type':'application/json',
         'Prefer':'return=minimal'
-      },
+      }),
       body:JSON.stringify({nickname,difficulty:diff,score:scoreVal,time_sec:timeSec,user_id:getUserId()})
     },6000);
   }catch(e){ console.error('ランキング送信に失敗しました',e); }
@@ -1060,7 +1149,7 @@ async function overrideWithCurrentNicknames(rows){
   const ids=[...new Set(rows.map(r=>r.user_id).filter(Boolean))];
   if(!ids.length) return rows;
   try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=in.(${ids.join(',')})&select=user_id,nickname`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=in.(${ids.join(',')})&select=user_id,nickname`,{headers:await authHeaders()},6000);
     if(!res.ok) return rows;
     const profs=await res.json();
     const map=new Map(profs.map(p=>[p.user_id,p.nickname]));
@@ -1072,7 +1161,7 @@ async function supabaseFetchTop(playDate,diff,limit){
   try{
     // 重複排除の余地を持たせるため、少し多めに取得してから同じ人ごとに最高点だけ残す
     const url=`${SUPABASE_URL}scores?play_date=eq.${playDate}&difficulty=eq.${diff}&select=nickname,score,time_sec,user_id&order=score.desc&limit=50`;
-    const res=await fetchWithTimeout(url,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(url,{headers:await authHeaders()},6000);
     if(!res.ok) return [];
     const rows=await res.json();
     const deduped=dedupeTopByUser(rows,limit);
@@ -1084,7 +1173,7 @@ async function supabaseFetchTop(playDate,diff,limit){
 async function supabaseFetchFullBoard(playDate,diff){
   try{
     const url=`${SUPABASE_URL}scores?play_date=eq.${playDate}&difficulty=eq.${diff}&select=nickname,score,time_sec,user_id&order=score.desc&limit=300`;
-    const res=await fetchWithTimeout(url,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(url,{headers:await authHeaders()},6000);
     if(!res.ok) return [];
     const rows=await res.json();
     const deduped=dedupeTopByUser(rows,300);
@@ -1978,7 +2067,7 @@ document.getElementById('feedbackSubmitBtn').addEventListener('click',async ()=>
   try{
     await fetchWithTimeout(`${SUPABASE_URL}feedback`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
       body:JSON.stringify({
         user_id:getUserId(),
         nickname:getNickname()||null,
@@ -2128,7 +2217,7 @@ document.getElementById('createGroupBtn').addEventListener('click',async ()=>{
     const code=generateInviteCode();
     const res=await fetchWithTimeout(`${SUPABASE_URL}groups`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+      headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=representation'}),
       body:JSON.stringify({name:name.slice(0,12),invite_code:code,created_by:getUserId()})
     },6000);
     if(!res.ok) throw new Error('create group failed');
@@ -2136,7 +2225,7 @@ document.getElementById('createGroupBtn').addEventListener('click',async ()=>{
     const group=rows[0];
     await fetchWithTimeout(`${SUPABASE_URL}group_members`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
       body:JSON.stringify({group_id:group.id,user_id:getUserId(),nickname:getNickname()})
     },6000);
     nameInput.value='';
@@ -2151,7 +2240,7 @@ document.getElementById('joinGroupBtn').addEventListener('click',async ()=>{
   const myGroups=await fetchMyGroups();
   if(myGroups.length>=MAX_GROUPS){ alert(t('groupLimitAlert')); return; }
   try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}groups?invite_code=eq.${encodeURIComponent(code)}&select=id,name`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}groups?invite_code=eq.${encodeURIComponent(code)}&select=id,name`,{headers:await authHeaders()},6000);
     if(!res.ok) throw new Error('lookup failed');
     const rows=await res.json();
     if(!rows.length){ alert(t('groupNotFoundAlert')); return; }
@@ -2159,7 +2248,7 @@ document.getElementById('joinGroupBtn').addEventListener('click',async ()=>{
     if(myGroups.some(g=>g.id===group.id)){ alert(t('groupAlreadyJoinedAlert')); return; }
     await fetchWithTimeout(`${SUPABASE_URL}group_members`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
       body:JSON.stringify({group_id:group.id,user_id:getUserId(),nickname:getNickname()})
     },6000);
     codeInput.value='';
@@ -2173,19 +2262,19 @@ document.getElementById('inviteByFriendCodeBtn').addEventListener('click',async 
   const code=codeInput.value.trim().toUpperCase();
   if(!targetGroupId || !code) return;
   try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?friend_code=eq.${encodeURIComponent(code)}&select=user_id,nickname`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?friend_code=eq.${encodeURIComponent(code)}&select=user_id,nickname`,{headers:await authHeaders()},6000);
     if(!res.ok) throw new Error('lookup failed');
     const rows=await res.json();
     if(!rows.length){ alert(t('friendCodeNotFoundAlert')); return; }
     const target=rows[0];
     if(target.user_id===getUserId()){ alert(t('friendCodeSelfAlert')); return; }
-    const targetGroupsRes=await fetchWithTimeout(`${SUPABASE_URL}group_members?user_id=eq.${target.user_id}&select=group_id`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const targetGroupsRes=await fetchWithTimeout(`${SUPABASE_URL}group_members?user_id=eq.${target.user_id}&select=group_id`,{headers:await authHeaders()},6000);
     const targetGroups=targetGroupsRes.ok ? await targetGroupsRes.json() : [];
     if(targetGroups.some(g=>g.group_id===targetGroupId)){ alert(t('groupAlreadyJoinedAlert')); return; }
     if(targetGroups.length>=MAX_GROUPS){ alert(t('targetGroupFullAlert')); return; }
     await fetchWithTimeout(`${SUPABASE_URL}group_members`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
       body:JSON.stringify({group_id:targetGroupId,user_id:target.user_id,nickname:target.nickname})
     },6000);
     codeInput.value='';
@@ -2199,7 +2288,7 @@ async function leaveGroup(groupId){
   try{
     await fetchWithTimeout(`${SUPABASE_URL}group_members?group_id=eq.${groupId}&user_id=eq.${getUserId()}`,{
       method:'DELETE',
-      headers:{'apikey':SUPABASE_KEY}
+      headers:await authHeaders()
     },6000);
     await renderGroupOverlay();
   }catch(e){ console.error('グループ脱退に失敗しました',e); alert(t('groupErrorAlert')); }
@@ -2229,14 +2318,14 @@ async function attemptJoinByCode(code){
     const myGroups=await fetchMyGroups();
     if(myGroups.some(g=>g.invite_code===code)) return; // 既に参加済み
     if(myGroups.length>=MAX_GROUPS){ alert(t('groupLimitAlert')); return; }
-    const res=await fetchWithTimeout(`${SUPABASE_URL}groups?invite_code=eq.${encodeURIComponent(code)}&select=id,name`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(`${SUPABASE_URL}groups?invite_code=eq.${encodeURIComponent(code)}&select=id,name`,{headers:await authHeaders()},6000);
     if(!res.ok) return;
     const rows=await res.json();
     if(!rows.length) return;
     const group=rows[0];
     await fetchWithTimeout(`${SUPABASE_URL}group_members`,{
       method:'POST',
-      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      headers:await authHeaders({'Content-Type':'application/json','Prefer':'return=minimal'}),
       body:JSON.stringify({group_id:group.id,user_id:getUserId(),nickname:getNickname()})
     },6000);
     alert(t('groupJoinedViaLinkAlert',{name:group.name}));
@@ -2430,7 +2519,7 @@ async function fetchAndMarkSharedDays(y,m,daysInMonth){
   const endDate=`${y}-${pad(m+1)}-${pad(daysInMonth)}`;
   try{
     const url=`${SUPABASE_URL}scores?play_date=gte.${startDate}&play_date=lte.${endDate}&select=play_date`;
-    const res=await fetchWithTimeout(url,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const res=await fetchWithTimeout(url,{headers:await authHeaders()},6000);
     if(!res.ok) return;
     const rows=await res.json();
     const activeDates=new Set(rows.map(r=>r.play_date));
@@ -2588,6 +2677,7 @@ document.getElementById('langToggleBtn').addEventListener('click',toggleLanguage
 (async function init(){
   document.getElementById('versionTag').textContent='v'+APP_VERSION;
   await checkForUpdate(); // 古いバージョンならここでリロードされ、以降の処理は行われない
+  ensureAuthSession(); // 匿名サインインを裏側で先に済ませておく(結果を待たずに進める)
   applyLanguage();
   todayLabel();
   await loadRecords();
