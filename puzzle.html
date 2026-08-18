@@ -1,0 +1,2626 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="app-version" content="1.7.0">
+<title>いろあわせパズル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FAF6EE;
+    --paper-deep:#F1EADC;
+    --ink:#3B322A;
+    --ink-soft:#6B5E50;
+    --shu:#C1440E;
+    --c0:#F2A6B3;
+    --c1:#7FB88F;
+    --c2:#6FA8C8;
+    --c3:#EDB92E;
+    --c4:#A98FC4;
+    --c5:#E88A5A;
+    --c6:#4FA695;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;padding:0;height:100%;
+    background:var(--paper);
+    font-family:'Zen Maru Gothic',sans-serif;
+    color:var(--ink);
+    overscroll-behavior:none;
+    user-select:none;
+  }
+  .app{
+    max-width:520px;margin:0 auto;min-height:100dvh;
+    display:flex;flex-direction:column;align-items:center;
+    padding:20px 16px 28px;
+  }
+  header{width:100%;text-align:center;margin-bottom:6px;}
+  h1{font-size:30px;font-weight:900;margin:0 0 4px;letter-spacing:.03em;}
+  .date{font-size:17px;color:var(--ink-soft);font-weight:500;}
+  .diff-label{
+    display:inline-block;margin-top:10px;background:#fff;border-radius:12px;
+    padding:6px 14px;font-size:13px;font-weight:700;color:var(--shu);
+    box-shadow:0 2px 6px rgba(59,50,42,.08);
+  }
+
+  .statbar{
+    width:100%;display:flex;align-items:center;justify-content:space-between;
+    margin:14px 0 14px;gap:10px;
+  }
+  .score-box,.time-box{
+    background:#fff;border-radius:16px;padding:10px 16px;
+    box-shadow:0 2px 0 var(--paper-deep), 0 4px 10px rgba(59,50,42,.08);
+    flex:1;
+  }
+  .score-label{font-size:14px;color:var(--ink-soft);font-weight:500;}
+  .score-value{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--shu);}
+  .time-value{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums;}
+  .cal-btn{
+    background:#fff;border:none;border-radius:16px;
+    width:52px;height:52px;font-size:24px;flex-shrink:0;
+    box-shadow:0 2px 0 var(--paper-deep), 0 4px 10px rgba(59,50,42,.08);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+  }
+  .cal-btn:active{transform:translateY(2px);box-shadow:0 0 0 var(--paper-deep);}
+
+  .board{
+    width:100%;
+    display:grid;gap:6px;
+    background:var(--paper-deep);
+    border-radius:20px;padding:8px;
+    box-shadow:inset 0 2px 6px rgba(59,50,42,.12);
+  }
+  .cell{
+    border:none;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;color:rgba(255,255,255,.92);
+    cursor:pointer;position:relative;
+    transition:transform .15s ease, opacity .18s ease;
+  }
+  .cell.empty{visibility:hidden;pointer-events:none;}
+  .cell.locked{pointer-events:none;cursor:default;}
+  .cell.locked::after{
+    content:'';position:absolute;inset:0;border-radius:12px;
+    background:rgba(59,50,42,.55);
+  }
+  .cell:active{transform:scale(.92);}
+  .cell.pop{animation:pop .22s ease forwards;}
+  @keyframes pop{0%{transform:scale(1);opacity:1;}100%{transform:scale(.2);opacity:0;}}
+  .cell.shake{animation:shake .28s ease;}
+  @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-4px);}75%{transform:translateX(4px);}}
+  .c0{background:linear-gradient(160deg,var(--c0),#e08a9a);}
+  .c1{background:linear-gradient(160deg,var(--c1),#5f9d70);}
+  .c2{background:linear-gradient(160deg,var(--c2),#4f8bab);}
+  .c3{background:linear-gradient(160deg,var(--c3),#d1a11c);}
+  .c4{background:linear-gradient(160deg,var(--c4),#8d70ae);}
+  .c5{background:linear-gradient(160deg,var(--c5),#c96a3a);}
+  .c6{background:linear-gradient(160deg,var(--c6),#357d70);}
+
+  .action-row{
+    margin-top:18px;width:100%;display:flex;flex-wrap:nowrap;gap:6px;
+  }
+  .action-row>button{flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #hintBtn{flex-grow:.8;}
+  #undoBtn{flex-grow:1;}
+  #giveupBtn{flex-grow:1.3;}
+  .action-row.no-undo #hintBtn{flex-grow:.9;}
+  .action-row.no-undo #giveupBtn{flex-grow:1.6;}
+  .hint-btn,.giveup-btn,.newgame{
+    border:none;border-radius:18px;padding:14px 2px;font-size:14px;font-weight:700;
+    font-family:inherit;cursor:pointer;
+  }
+  .hint-btn,.giveup-btn{
+    background:#fff;color:var(--ink-soft);border:2px solid var(--paper-deep);
+    box-shadow:0 4px 0 var(--paper-deep);
+  }
+  .hint-btn:active,.giveup-btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--paper-deep);}
+  .hint-btn:disabled,.giveup-btn:disabled{opacity:.4;}
+  .newgame{background:var(--shu);color:#fff;box-shadow:0 4px 0 #96350a;}
+  .newgame:active{transform:translateY(4px);box-shadow:0 0 0 #96350a;}
+
+  .cell.hint{outline:4px solid var(--shu);outline-offset:-3px;animation:hintPulse .6s ease-in-out infinite alternate;}
+  @keyframes hintPulse{from{box-shadow:0 0 2px rgba(193,68,14,.5);}to{box-shadow:0 0 16px rgba(193,68,14,.95);}}
+
+  .msg{margin-top:12px;font-size:17px;color:var(--ink-soft);text-align:center;min-height:20px;}
+
+  .demo-controls{
+    margin-top:10px;width:100%;display:flex;gap:8px;justify-content:center;
+  }
+  .demo-controls button{
+    background:#fff;color:var(--ink-soft);border:2px solid var(--paper-deep);
+    border-radius:14px;padding:10px 20px;font-size:17px;font-weight:700;
+    font-family:inherit;cursor:pointer;box-shadow:0 3px 0 var(--paper-deep);
+  }
+  .demo-controls button:active{transform:translateY(3px);box-shadow:0 0 0 var(--paper-deep);}
+  .demo-controls button:disabled{opacity:.4;}
+
+  .overlay{
+    position:fixed;inset:0;background:rgba(59,50,42,.45);
+    display:none;align-items:flex-start;justify-content:center;padding:14px;z-index:10;
+    overflow-y:auto;
+  }
+  .overlay.show{display:flex;}
+  #rankingViewOverlay{z-index:20;} /* 結果ポップアップの上に重ねて表示するため */
+
+  .diff-card{
+    background:var(--paper);border-radius:22px;padding:20px 22px;
+    width:100%;max-width:400px;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:center;
+    max-height:calc(100dvh - 28px);overflow-y:auto;position:relative;
+  }
+  .card-cal-btn-inline{
+    flex-shrink:0;background:#fff;border:none;border-radius:10px;width:36px;height:36px;font-size:16px;
+    box-shadow:0 2px 6px rgba(59,50,42,.12);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .card-cal-btn-inline:active{transform:translateY(2px);}
+  .diff-card h2{margin:0 0 4px;font-size:29px;font-weight:900;}
+  .diff-card p{margin:0;font-size:15px;color:var(--ink-soft);}
+  .diff-subrow{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;}
+  .diff-subrow p{flex:1 1 auto;min-width:0;}
+  .diff-subrow .card-cal-btn-inline{flex-shrink:0;}
+  .diff-choice{
+    width:100%;background:#fff;border:2px solid transparent;border-radius:16px;
+    padding:16px;margin-bottom:8px;font-family:inherit;cursor:pointer;
+    display:flex;flex-direction:column;gap:2px;text-align:left;
+    box-shadow:0 2px 0 var(--paper-deep),0 4px 10px rgba(59,50,42,.06);
+  }
+  .diff-choice .name{font-size:21px;font-weight:900;color:var(--ink);}
+  .diff-choice .desc{font-size:15px;color:var(--ink-soft);font-weight:500;line-height:1.5;}
+  .beginner-badge{
+    display:inline-block;margin-top:8px;background:var(--shu);color:#fff;
+    font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px;
+  }
+  .version-tag{margin-top:8px;text-align:center;font-size:12px;color:var(--ink-soft);opacity:.6;}
+  .lang-row{display:flex;justify-content:center;margin-bottom:12px;}
+  .lang-toggle-btn{
+    background:#fff;border:2px solid var(--paper-deep);border-radius:999px;
+    padding:8px 18px;font-size:14px;font-weight:700;color:var(--ink-soft);
+    font-family:inherit;cursor:pointer;
+  }
+  .lang-toggle-btn:active{transform:translateY(2px);}
+
+  .ranking-section{margin-top:8px;padding-top:10px;border-top:1px solid var(--paper-deep);}
+  .ranking-join-btn{
+    width:100%;background:var(--shu);color:#fff;border:none;border-radius:16px;
+    padding:14px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
+  .ranking-join-btn:active{transform:translateY(2px);}
+  .ranking-status{font-size:15px;color:var(--ink);text-align:center;margin-bottom:10px;}
+  .ranking-status b{color:var(--shu);}
+  .ranking-actions{display:flex;gap:8px;}
+  .ranking-link-btn{
+    flex:1;background:#fff;border:2px solid var(--paper-deep);color:var(--ink-soft);
+    border-radius:12px;padding:10px 4px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
+  .nickname-input{
+    width:100%;padding:14px;font-size:17px;font-family:inherit;border:2px solid var(--paper-deep);
+    border-radius:14px;background:#fff;color:var(--ink);box-sizing:border-box;
+  }
+  .field-label{margin:14px 0 6px;font-size:14px;color:var(--ink-soft);font-weight:700;text-align:left;}
+  .field-hint{margin:0 0 8px;font-size:12px;color:var(--ink-soft);text-align:left;line-height:1.6;}
+  .feedback-btn{
+    width:100%;background:#fff;border:2px solid var(--paper-deep);color:var(--ink-soft);
+    border-radius:16px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;
+    cursor:pointer;margin-top:10px;
+  }
+  .feedback-textarea{
+    width:100%;min-height:70px;padding:12px;font-size:15px;font-family:inherit;
+    border:2px solid var(--paper-deep);border-radius:14px;background:#fff;color:var(--ink);
+    box-sizing:border-box;resize:vertical;margin-bottom:4px;
+  }
+  .star-row{display:flex;gap:6px;justify-content:center;margin-bottom:14px;}
+  .star-btn{
+    background:#fff;border:2px solid var(--paper-deep);border-radius:12px;width:44px;height:44px;
+    font-size:22px;color:var(--paper-deep);font-family:inherit;cursor:pointer;
+  }
+  .star-btn.active{border-color:#EDB92E;color:#EDB92E;background:#fffaf0;}
+  .age-group-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .age-btn{
+    background:#fff;border:2px solid var(--paper-deep);border-radius:14px;padding:12px 4px;
+    font-size:14px;font-weight:700;color:var(--ink-soft);font-family:inherit;cursor:pointer;
+  }
+  .age-btn.active{border-color:var(--shu);color:var(--shu);background:#fff6f1;}
+  .group-friendcode-box{
+    background:#fff;border-radius:14px;padding:12px 14px;text-align:center;font-size:15px;
+    margin-bottom:14px;box-shadow:0 1px 4px rgba(59,50,42,.08);
+  }
+  .group-friendcode-box b{color:var(--shu);letter-spacing:1px;}
+  .group-action-block{margin-top:16px;padding-top:14px;border-top:1px solid var(--paper-deep);text-align:left;}
+  .group-action-block p{margin:0 0 6px;font-size:14px;font-weight:700;color:var(--ink-soft);}
+  .group-card{
+    background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;
+    box-shadow:0 1px 4px rgba(59,50,42,.08);
+  }
+  .group-card .g-name{font-weight:900;font-size:16px;}
+  .group-card .g-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .group-card .g-btn-row{display:flex;gap:8px;margin-top:8px;}
+  .group-card .g-leave,.group-card .g-share{
+    background:#fff;border:2px solid var(--paper-deep);color:var(--ink-soft);
+    border-radius:10px;padding:6px 14px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
+  .group-card .g-share{border-color:var(--shu);color:var(--shu);}
+  .ranking-row-mate{border-color:var(--c2);background:#f0f8fb;}
+  .mate-badge{
+    display:inline-block;font-size:11px;background:var(--c2);color:#fff;
+    padding:2px 8px;border-radius:999px;margin-left:6px;font-weight:700;vertical-align:middle;
+  }
+  .ranking-row{
+    display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;
+    padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(59,50,42,.08);
+    border:2px solid transparent;
+  }
+  .ranking-row-you{border-color:var(--shu);background:#fff6f1;}
+  .ranking-sep{text-align:center;color:var(--ink-soft);letter-spacing:2px;margin:6px 0;font-size:14px;}
+  .you-badge{
+    display:inline-block;font-size:11px;background:var(--shu);color:#fff;
+    padding:2px 8px;border-radius:999px;margin-left:6px;font-weight:700;vertical-align:middle;
+  }
+  .ranking-rank{font-weight:900;color:var(--shu);width:38px;flex-shrink:0;}
+  .ranking-name{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .ranking-score{font-weight:900;font-variant-numeric:tabular-nums;}
+  .day-date{font-size:16px;font-weight:900;color:var(--shu);text-align:center;margin-bottom:10px;}
+  .day-diff-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px;}
+  .day-diff-tab{
+    flex-shrink:0;background:#fff;border:2px solid var(--paper-deep);border-radius:999px;
+    padding:8px 16px;font-size:13px;font-weight:700;color:var(--ink-soft);font-family:inherit;cursor:pointer;
+  }
+  .day-diff-tab.active{border-color:var(--shu);color:var(--shu);background:#fff6f1;}
+  .day-mine-card{
+    background:linear-gradient(160deg,#fff,var(--paper-deep));border-radius:16px;
+    padding:14px 16px;text-align:center;margin-bottom:14px;box-shadow:0 2px 8px rgba(59,50,42,.08);
+  }
+  .day-mine-label{font-size:12px;color:var(--ink-soft);font-weight:700;margin-bottom:2px;}
+  .day-mine-score{font-size:28px;font-weight:900;color:var(--shu);font-variant-numeric:tabular-nums;}
+  .day-mine-unit{font-size:14px;font-weight:700;margin-left:2px;}
+  .day-mine-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .day-top-label{font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 6px;}
+  .tutorial-body{text-align:left;margin-bottom:20px;}
+  .tutorial-body p{font-size:16px;line-height:1.8;margin:0 0 14px;color:var(--ink);}
+  .tutorial-body b{color:var(--shu);}
+  .diff-choice:active{transform:scale(.98);}
+
+  .result-card{
+    background:var(--paper);border-radius:22px;padding:28px 24px;
+    width:100%;max-width:400px;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:center;
+    border:3px solid transparent;position:relative;
+  }
+  .result-card h2{margin:0 0 4px;font-size:26px;font-weight:900;color:var(--shu);}
+  .result-card.perfect{
+    border-color:var(--c3);
+    background:linear-gradient(180deg,#FFF7E0,var(--paper) 60%);
+  }
+  .result-card.perfect h2{
+    color:#C98A00;font-size:30px;
+    text-shadow:0 1px 0 #fff;
+  }
+  .result-card.perfect h2::before{content:'🎉 ';}
+  .result-card.perfect h2::after{content:' 🎉';}
+  .result-card .result-diff{font-size:15px;color:var(--ink-soft);font-weight:700;margin-bottom:0;}
+  .result-subrow{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:18px;}
+  .result-stats{display:flex;gap:10px;margin-bottom:8px;}
+  .result-stats .box{flex:1;background:#fff;border-radius:14px;padding:14px 6px;box-shadow:0 2px 8px rgba(59,50,42,.08);}
+  .result-stats .box .label{font-size:13px;color:var(--ink-soft);font-weight:500;margin-bottom:2px;}
+  .result-stats .box .value{font-size:24px;font-weight:900;font-variant-numeric:tabular-nums;}
+  .result-highscore{
+    font-size:17px;font-weight:900;color:#C98A00;text-align:center;margin-bottom:8px;
+    animation:hsPulse 1s ease-in-out infinite alternate;
+  }
+  @keyframes hsPulse{from{transform:scale(1);}to{transform:scale(1.06);}}
+  .result-breakdown{font-size:13px;color:var(--shu);font-weight:700;text-align:center;margin-bottom:16px;}
+  .result-demo{
+    width:100%;background:#fff;color:var(--ink-soft);border:2px solid var(--paper-deep);border-radius:16px;
+    padding:14px;font-size:17px;font-weight:700;font-family:inherit;cursor:pointer;
+    box-shadow:0 4px 0 var(--paper-deep);margin-bottom:12px;
+  }
+  .result-demo:active{transform:translateY(4px);box-shadow:0 0 0 var(--paper-deep);}
+  .result-demo:disabled{opacity:.4;}
+  .result-share{
+    width:100%;background:#fff;color:var(--shu);border:2px solid var(--shu);border-radius:16px;
+    padding:14px;font-size:17px;font-weight:700;font-family:inherit;cursor:pointer;
+    margin-bottom:12px;
+  }
+  .result-share:active{transform:translateY(2px);}
+  .result-newgame{
+    width:100%;background:var(--shu);color:#fff;border:none;border-radius:16px;
+    padding:16px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;
+    box-shadow:0 4px 0 #96350a;
+  }
+  .result-newgame:active{transform:translateY(4px);box-shadow:0 0 0 #96350a;}
+  .result-close{
+    width:100%;background:none;border:none;color:var(--ink-soft);
+    font-family:inherit;font-size:14px;font-weight:500;padding:12px;cursor:pointer;
+  }
+
+  .cal-card{
+    background:var(--paper);border-radius:22px;padding:20px;
+    width:100%;max-width:440px;max-height:calc(100dvh - 28px);overflow-y:auto;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .cal-head button{
+    background:#fff;border:none;border-radius:12px;width:42px;height:42px;font-size:20px;
+    box-shadow:0 2px 6px rgba(59,50,42,.12);cursor:pointer;
+  }
+  .cal-title{font-size:19px;font-weight:700;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;}
+  .cal-dow{text-align:center;font-size:12px;color:var(--ink-soft);font-weight:500;padding:4px 0;}
+  .cal-day{
+    min-height:52px;border-radius:10px;background:#fff;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;position:relative;padding:3px 0;
+    box-shadow:0 1px 3px rgba(59,50,42,.08);
+  }
+  .cal-day.blank{background:transparent;box-shadow:none;}
+  .cal-day.today{outline:2px solid var(--shu);outline-offset:-2px;}
+  .cal-day .dots{display:flex;gap:2px;margin-top:2px;}
+  .cal-day .dot{width:7px;height:7px;border-radius:50%;}
+  .cal-day .dot-shared{background:var(--ink-soft);opacity:.5;}
+  .cal-close{
+    width:100%;margin-top:14px;background:var(--ink);color:#fff;border:none;
+    border-radius:14px;padding:13px;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
+  .empty-note{text-align:center;color:var(--ink-soft);font-size:14px;margin-top:10px;}
+  .day-detail{margin-top:10px;background:#fff;border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.9;}
+  .day-detail b{color:var(--shu);}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 id="appTitleText">いろあわせパズル</h1>
+    <div class="date" id="todayLabel"></div>
+    <div class="diff-label" id="diffLabel"></div>
+  </header>
+
+  <div class="statbar">
+    <div class="score-box">
+      <div class="score-label" id="scoreLabelText">スコア</div>
+      <div class="score-value" id="scoreValue">0</div>
+    </div>
+    <div class="time-box">
+      <div class="score-label" id="timeLabel">経過時間</div>
+      <div class="time-value" id="timeValue">00:00</div>
+    </div>
+    <button class="cal-btn" id="openTutorial" aria-label="あそびかた">❓</button>
+    <button class="cal-btn" id="openCal" aria-label="記録を見る">📅</button>
+  </div>
+
+  <div class="board" id="board"></div>
+
+  <div class="msg" id="msg">難易度を選んでゲームを始めてね</div>
+
+  <div class="demo-controls" id="demoControls" style="display:none;">
+    <button id="demoStopBtn">⏸ ストップ</button>
+    <button id="demoPlayBtn" disabled>▶ さいせい</button>
+    <button id="demoReplayBtn" style="display:none;">🔁 もう一度見る</button>
+  </div>
+
+  <div class="action-row" id="actionRow">
+    <button class="hint-btn" id="hintBtn" disabled>ヒント</button>
+    <button class="hint-btn" id="undoBtn" disabled>↩️ 1手戻る</button>
+    <button class="giveup-btn" id="giveupBtn">新しいゲームを始める</button>
+  </div>
+</div>
+
+<div class="overlay" id="diffOverlay">
+  <div class="diff-card">
+    <h2 id="diffTitleText">難易度をえらんでね</h2>
+    <div class="lang-row" style="display:none;">
+      <button class="lang-toggle-btn" id="langToggleBtn">🌐 English</button>
+    </div>
+    <div class="diff-subrow">
+      <p id="diffSubtitleText">あとから下のボタンでも選べます</p>
+      <button class="card-cal-btn-inline" id="openTutorialFromDiff" aria-label="あそびかた">❓</button>
+      <button class="card-cal-btn-inline" id="openCalFromDiff" aria-label="記録を見る">📅</button>
+    </div>
+    <button class="diff-choice" data-d="easy">
+      <span class="name"></span>
+      <span class="desc"></span>
+      <span class="beginner-badge"></span>
+    </button>
+    <button class="diff-choice" data-d="normal"><span class="name"></span><span class="desc"></span></button>
+    <button class="diff-choice" data-d="hard"><span class="name"></span><span class="desc"></span></button>
+    <button class="diff-choice" data-d="infinite"><span class="name"></span><span class="desc"></span></button>
+    <div class="ranking-section" id="rankingSection"></div>
+    <button class="feedback-btn" id="openFeedbackBtn">📝 アンケート・ご意見</button>
+    <div class="version-tag" id="versionTag"></div>
+  </div>
+</div>
+
+<div class="overlay" id="nicknameOverlay">
+  <div class="diff-card">
+    <h2 id="nicknameTitleText">ニックネームをきめてね</h2>
+    <div class="diff-subrow">
+      <p id="nicknameSubtitleText">ランキングに表示される名前だよ(あとから変更もできます)</p>
+      <button class="card-cal-btn-inline" id="openGroupTutorialBtn" aria-label="ランキング・グループについて">❓</button>
+    </div>
+    <input type="text" id="nicknameInput" maxlength="10" placeholder="例: トシシ" class="nickname-input">
+
+    <p class="field-label" id="friendCodeLabelText">合言葉(友だちに教える用)</p>
+    <p class="field-hint" id="friendCodeHintText">この合言葉を知っている友だちと、スコアを競えるようになるよ!ひらがな・カタカナ・漢字・英数字で自由に決めてOK</p>
+    <input type="text" id="friendCodeInput" maxlength="10" placeholder="例: あいことば" class="nickname-input">
+
+    <p class="field-label" id="ageGroupLabelText">年代(任意)</p>
+    <div class="age-group-row" id="ageGroupRow">
+      <button type="button" class="age-btn" data-age="senior">👴 シニア</button>
+      <button type="button" class="age-btn" data-age="adult">👨 大人</button>
+      <button type="button" class="age-btn" data-age="youth">🧑‍🎓 若者</button>
+      <button type="button" class="age-btn" data-age="">答えない</button>
+    </div>
+
+    <button class="newgame" id="nicknameConfirmBtn" style="width:100%;margin-top:14px;">けってい</button>
+    <button class="result-close" id="nicknameCancelBtn" style="width:100%;">やめる</button>
+  </div>
+</div>
+
+<div class="overlay" id="groupTutorialOverlay">
+  <div class="diff-card">
+    <h2>ランキング・グループについて</h2>
+    <div class="tutorial-body">
+      <p>🏆 ニックネームと合言葉を登録すると、その合言葉を知ってる友だちとスコアを競えるようになるよ</p>
+      <p>👥 合言葉をお互い教え合えば、グループも作れるよ!グループの仲間だけのランキングも見られるようになるよ</p>
+      <p>🙈 合言葉を教えなければ、誰にも見つからずに自分だけで遊ぶこともできるよ</p>
+    </div>
+    <button class="newgame" id="groupTutorialCloseBtn" style="width:100%;">わかった!</button>
+  </div>
+</div>
+
+<div class="overlay" id="feedbackOverlay">
+  <div class="diff-card">
+    <h2>アンケート・ご意見</h2>
+    <p class="field-hint">気になったこと・欲しい機能・バグなど、なんでも教えてね(送信内容は開発者だけが見られるよ)</p>
+
+    <p class="field-label">満足度</p>
+    <div class="star-row" id="feedbackStarRow">
+      <button type="button" class="star-btn" data-star="1">★</button>
+      <button type="button" class="star-btn" data-star="2">★</button>
+      <button type="button" class="star-btn" data-star="3">★</button>
+      <button type="button" class="star-btn" data-star="4">★</button>
+      <button type="button" class="star-btn" data-star="5">★</button>
+    </div>
+
+    <p class="field-label">難易度について</p>
+    <textarea id="feedbackDifficulty" class="feedback-textarea" placeholder="簡単すぎる/難しすぎる、など"></textarea>
+
+    <p class="field-label">欲しい機能</p>
+    <textarea id="feedbackFeature" class="feedback-textarea" placeholder="こんな機能が欲しい、など"></textarea>
+
+    <p class="field-label">操作で分かりにくかったところ</p>
+    <textarea id="feedbackUsability" class="feedback-textarea" placeholder="ボタンの位置が分かりにくい、など"></textarea>
+
+    <p class="field-label">バグ・不具合</p>
+    <textarea id="feedbackBug" class="feedback-textarea" placeholder="こんな時にこうなった、など"></textarea>
+
+    <button class="newgame" id="feedbackSubmitBtn" style="width:100%;margin-top:14px;">送信する</button>
+    <button class="result-close" id="feedbackCancelBtn" style="width:100%;">とじる</button>
+  </div>
+</div>
+
+<div class="overlay" id="groupOverlay">
+  <div class="cal-card">
+    <div class="cal-head">
+      <div class="cal-title" id="groupTitleText">グループ</div>
+      <button id="groupOverlayClose">✕</button>
+    </div>
+    <p class="field-hint" id="groupExplainText" style="margin-bottom:10px;">同じグループの仲間とだけ、ランキングを比べられるようになるよ。招待コードか、お互いの合言葉で誘い合えるよ</p>
+    <div class="group-friendcode-box">
+      <span id="myFriendCodeLabelText">あなたの合言葉:</span> <b id="myFriendCodeText">------</b>
+    </div>
+    <div id="groupList"></div>
+    <div class="group-action-block">
+      <p id="groupCreateLabelText">グループを作る</p>
+      <input type="text" id="newGroupNameInput" maxlength="12" placeholder="例: かぞく" class="nickname-input">
+      <button class="newgame" id="createGroupBtn" style="width:100%;margin-top:8px;">作成する</button>
+    </div>
+    <div class="group-action-block">
+      <p id="groupJoinLabelText">招待コードで参加する</p>
+      <input type="text" id="joinGroupCodeInput" maxlength="10" placeholder="招待コード" class="nickname-input">
+      <button class="newgame" id="joinGroupBtn" style="width:100%;margin-top:8px;">参加する</button>
+    </div>
+    <div class="group-action-block">
+      <p id="groupInviteLabelText">合言葉で誘う</p>
+      <select id="inviteTargetGroupSelect" class="nickname-input"></select>
+      <input type="text" id="inviteFriendCodeInput" maxlength="10" placeholder="相手の合言葉" class="nickname-input" style="margin-top:8px;">
+      <button class="newgame" id="inviteByFriendCodeBtn" style="width:100%;margin-top:8px;">追加する</button>
+    </div>
+    <button class="cal-close" id="groupOverlayCloseBottom">とじる</button>
+  </div>
+</div>
+
+<div class="overlay" id="rankingViewOverlay">
+  <div class="cal-card">
+    <div class="cal-head">
+      <div class="cal-title" id="rankingViewTitle">今日のランキング</div>
+      <button id="rankingViewClose">✕</button>
+    </div>
+    <select id="rankingCategorySelect" class="nickname-input" style="margin-top:10px;"></select>
+    <div id="rankingViewList" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<div class="overlay" id="tutorialOverlay">
+  <div class="diff-card">
+    <h2 id="tutorialTitleText">あそびかた</h2>
+    <div class="tutorial-body">
+      <p id="tutorial1Text">🟢 <b>同じ色が3つ以上つながっているところ</b>をタップすると消えるよ</p>
+      <p id="tutorial2Text">🔴 <b>ふつう・むずかしい</b>では、さいしょの1回だけ<b>一番下の行</b>をタップしてね</p>
+      <p id="tutorial3Text">💡 こまったら「ヒント」ボタンを押すと、消せるところを教えてくれるよ(次に消すスコアは半分になるよ)</p>
+      <p id="tutorial4Text">↩️ 「1手戻る」を押すと直前の1手をやり直せるけど、少しスコアが減るよ</p>
+    </div>
+    <button class="newgame" id="tutorialCloseBtn" style="width:100%;">わかった!あそぶ</button>
+  </div>
+</div>
+
+<div class="overlay" id="resultOverlay">
+  <div class="result-card">
+    <h2 id="resultTitle">おつかれさま!</h2>
+    <div class="result-subrow">
+      <div class="result-diff" id="resultDiff"></div>
+      <button class="card-cal-btn-inline" id="openCalFromResult" aria-label="記録を見る">📅</button>
+    </div>
+    <div class="result-stats">
+      <div class="box">
+        <div class="label" id="resultScoreLabelText">スコア</div>
+        <div class="value" id="resultScore">0</div>
+      </div>
+      <div class="box">
+        <div class="label" id="resultTimeLabelText">時間</div>
+        <div class="value" id="resultTime">00:00</div>
+      </div>
+    </div>
+    <div class="result-highscore" id="resultHighScore" style="display:none;">✨ 本日のハイスコア更新! ✨</div>
+    <div class="result-breakdown" id="resultBreakdown" style="display:none;"></div>
+    <button class="result-demo" id="resultDemoBtn" style="display:none;">お手本を自動再生する</button>
+    <button class="result-share" id="resultShareBtn">🏆 スコアを共有する</button>
+    <button class="result-share" id="resultRankingBtn">📊 今日のランキングを見る</button>
+    <button class="result-newgame" id="resultNewGameBtn">新しいゲームを始める</button>
+    <button class="result-close" id="resultCloseBtn">盤面を見る</button>
+  </div>
+</div>
+
+<div class="overlay" id="calOverlay">
+  <div class="cal-card">
+    <div class="cal-head">
+      <button id="prevMonth">◀</button>
+      <div class="cal-title" id="calTitle"></div>
+      <button id="nextMonth">▶</button>
+    </div>
+    <div class="cal-grid" id="calDow"></div>
+    <div class="cal-grid" id="calDays"></div>
+    <div class="empty-note" id="calEmptyNote" style="display:none;">まだ記録がありません</div>
+    <div class="day-detail" id="dayDetail" style="display:none;"></div>
+    <button class="cal-close" id="closeCal">とじる</button>
+  </div>
+</div>
+
+<script>
+// ---------- 言語(現在は日本語固定。切り替えUIは一旦非表示にしてるけど、
+// t()/I18N の仕組み自体は残してあるので将来また有効化しやすいようにしてある) ----------
+const LANG_KEY='puzzle-lang';
+let lang='ja';
+
+const I18N={
+  ja:{
+    appTitle:'いろあわせパズル',
+    scoreLabel:'スコア', timeLabelElapsed:'経過時間', timeLabelRemaining:'のこり時間',
+    hintBtn:'ヒント', undoBtn:'↩️ 1手戻る', giveupBtnPlaying:'ギブアップ', giveupBtnIdle:'新しいゲームを始める',
+    msgDefault:'同じ色を3つ以上つなげてタップしてね',
+    msgChooseDifficulty:'難易度を選んでゲームを始めてね',
+    msgBottomFirst:'さいしょは、一番下の行をタップしてね',
+    msgNoMoves:'もう消せる場所がないみたい。ギブアップしてもいいよ',
+    msgNoBottomMoves:'一番下の行に消せるところが見当たらないみたい',
+    msgTapHighlighted:'光っているところをタップしてみてね(次に消すスコアは半分になるよ)',
+    msgHintPenalty:'ヒントを使った次だったから、スコアが半分になったよ',
+    msgInfiniteDefault:'どんどんタップして消していこう!',
+    msgUndoDone:'1手戻したよ(スコアが{penalty}点減ったよ)',
+    msgUndoDoneNoPenalty:'1手戻したよ',
+    msgProcessError:'うまく処理できませんでした。「新しいゲームを始める」を押してね',
+    msgResultLine:'{prefix} スコア {score}({parts})・時間 {time} でした',
+    msgResultLineSimple:'{prefix} スコア {score}・時間 {time} でした',
+    msgTimeUp:'タイムアップ! スコア {score} でした',
+    msgStuckOrGiveup:'{prefix} スコア {score} でした',
+    partBase:'きほん{score}', partSpeed:'はやさボーナス{v}', partPerfect:'パーフェクトボーナス{v}',
+
+    diffTitle:'難易度をえらんでね', diffSubtitle:'あとから下のボタンでも選べます',
+    diff_easy_name:'かんたん', diff_easy_desc:'{colors}色・{rows}×{cols}マス',
+    diff_normal_name:'ふつう', diff_normal_desc:'{colors}色・{rows}×{cols}マス・最初は一番下の行から',
+    diff_hard_name:'むずかしい', diff_hard_desc:'{colors}色・{rows}×{cols}マス・最初は一番下の行から',
+    diff_infinite_name:'♾️ むげん', diff_infinite_desc:'30秒間で何個消せるかチャレンジ・上から無限に降ってくる',
+    beginnerBadge:'はじめての人はこちらから',
+    diffSummary:'{name}({colors}色・{rows}×{cols})',
+
+    tutorialTitle:'あそびかた',
+    tutorial1:'🟢 <b>同じ色が3つ以上つながっているところ</b>をタップすると消えるよ',
+    tutorial2:'🔴 <b>ふつう・むずかしい</b>では、さいしょの1回だけ<b>一番下の行</b>をタップしてね',
+    tutorial3:'💡 こまったら「ヒント」ボタンを押すと、消せるところを教えてくれるよ(次に消すスコアは半分になるよ)',
+    tutorial4:'↩️ 「1手戻る」を押すと直前の1手をやり直せるけど、少しスコアが減るよ',
+    tutorialClose:'わかった!あそぶ',
+
+    nicknameTitle:'ニックネームをきめてね', nicknameSubtitle:'ランキングに表示される名前だよ(あとから変更もできます)',
+    nicknamePlaceholder:'例: トシシ', nicknameConfirm:'けってい', nicknameCancel:'やめる',
+    nicknameEmptyAlert:'ニックネームを入力してね',
+    nicknameInappropriateAlert:'不適切な名前が検知されました。別の名前を入力してね',
+    friendCodeLabel:'合言葉(友だちに教える用)', friendCodePlaceholder:'例: ABC123',
+    ageGroupLabel:'年代(任意)', ageSenior:'👴 シニア', ageAdult:'👨 大人', ageYouth:'🧑\u200d🎓 若者', ageSkip:'答えない',
+    friendCodeInvalidAlert:'合言葉は2〜10文字の日本語・英数字で入力してね',
+    friendCodeTakenAlert:'その合言葉はもう使われているみたい。別のにしてね',
+    groupBtn:'👥 グループを管理',
+    groupTitle:'グループ', myFriendCodeLabel:'あなたの合言葉:',
+    groupCreateLabel:'グループを作る', groupNamePlaceholder:'例: かぞく', groupCreateBtn:'作成する',
+    groupJoinLabel:'招待コードで参加する', groupJoinPlaceholder:'招待コード', groupJoinBtn:'参加する',
+    groupInviteLabel:'合言葉で誘う', groupInvitePlaceholder:'相手の合言葉', groupInviteBtn:'追加する',
+    groupLeaveBtn:'抜ける', groupLeaveConfirm:'このグループから抜けますか?',
+    groupMembersCount:'{count}人', groupInviteCodeLabel:'招待コード:',
+    groupNameEmptyAlert:'グループ名を入力してね',
+    groupLimitAlert:'グループは最大3つまでです',
+    groupErrorAlert:'通信エラーが発生しました。もう一度試してみてね',
+    groupNotFoundAlert:'その招待コードのグループが見つからないみたい',
+    groupAlreadyJoinedAlert:'そのグループにはもう入ってるよ',
+    friendCodeNotFoundAlert:'その合言葉の人が見つからないみたい',
+    friendCodeSelfAlert:'自分自身は誘えないよ',
+    targetGroupFullAlert:'その人はグループの上限(3つ)に達しているみたい',
+    inviteSuccessAlert:'{name}さんをグループに追加したよ!',
+    groupShareBtn:'共有する',
+    shareGroupInviteText:'「{name}」グループに招待するよ!このリンクを開けば参加できるよ',
+    shareGroupCopiedAlert:'招待リンクをコピーしたよ。LINEなどに貼り付けて送ってね',
+    groupJoinedViaLinkAlert:'「{name}」グループに参加したよ!',
+    mateBadge:'🤝 なかま',
+    categoryNational:'🌏 全国', categoryGroupPrefix:'👥 ',
+
+    rankingJoin:'🏆 みんなのランキングに参加する',
+    rankingStatus:'🏆 <b>{name}</b>さんとして参加中',
+    rankingChangeNickname:'ニックネーム変更', rankingLeave:'参加をやめる',
+    rankingLeaveConfirm:'ランキング参加をやめますか?',
+    rankingViewToday:'今日の「{label}」ランキング', rankingViewGeneric:'今日のランキング',
+    rankingLoading:'読み込み中…', rankingNoData:'まだ今日の記録がないみたい',
+    rankingLoadError:'読み込みに失敗したみたい。もう一度試してみてね',
+    youBadge:'あなた', positionSuffix:'位', pointsSuffix:'点',
+
+    resultTitlePerfect:'パーフェクト!!', resultTitleCleared:'おつかれさま!',
+    resultTitleGiveup:'ギブアップ!', resultTitleTimeUp:'タイムアップ!',
+    resultTitleStuck:'おつかれさま!全部消せなくなっちゃったよ!',
+    resultScoreLabel:'スコア', resultTimeLabel:'時間',
+    resultHighScore:'✨ 本日のハイスコア更新! ✨',
+    resultDemoBtn:'お手本を見る',
+    resultShareBtn:'🏆 スコアを共有する', resultRankingBtn:'📊 今日のランキングを見る',
+    resultNewGameBtn:'新しいゲームを始める', resultCloseBtn:'盤面を見る',
+
+    calEmptyNote:'まだ記録がありません', calClose:'とじる',
+    dayDetailNoRecord:'この日のあなたの記録はまだ無いよ',
+    dayMineLabel:'あなたの記録', dayMineMeta:'タイム {time} ・ プレイ {plays}回',
+    dayTopLabel:'トップ3', dayNothingHere:'この難易度の記録はまだ無いよ',
+    dayNoDataAtAll:'この日の記録はまだ無いみたい',
+    dayRankingLoading:'🏆 みんなのランキングを読み込み中…',
+    dayRankingTop3:'{label}トップ3:',
+    dayDetailLine:'{label}: ベストスコア {score}({time})・プレイ {plays}回',
+
+    demoStop:'⏸ ストップ', demoPlay:'▶ さいせい', demoReplay:'🔁 もう一度見る',
+    demoThinking:'お手本を考え中…', demoThinkingRestart:'最初の盤面から、お手本を考え中…',
+    demoPlayingRestart:'最初の盤面から、お手本を再生しています…(記録済みのスコアは変わりません)',
+    demoPlaying:'お手本を再生しています…(記録済みのスコアは変わりません)',
+    demoPlayingPartial:'お手本を再生しています(ここからは全部は消せなかったみたい)',
+    demoDonePerfect:'お手本の通りで、全部消しきれました!記録済みのスコアはさっきのままだよ',
+    demoDonePartial:'お手本はここまで。記録済みのスコアはさっきのままだよ',
+
+    shareText:'いろあわせパズル「{label}」でスコア{score}・タイム{time}を出したよ!挑戦してみてね',
+    shareCopiedAlert:'スコアとリンクをコピーしたよ。LINEなどに貼り付けて送ってね',
+    sharePromptText:'このテキストをコピーして送ってね',
+    langToggle:'🌐 English'
+  },
+  en:{
+    appTitle:'Color Match Puzzle',
+    scoreLabel:'Score', timeLabelElapsed:'Time', timeLabelRemaining:'Time Left',
+    hintBtn:'Hint', undoBtn:'↩️ Undo', giveupBtnPlaying:'Give Up', giveupBtnIdle:'Start New Game',
+    msgDefault:'Tap 3+ matching colors to clear them',
+    msgChooseDifficulty:'Choose a difficulty to start the game',
+    msgBottomFirst:'First, tap the bottom row',
+    msgNoMoves:"No more moves available. Feel free to give up",
+    msgNoBottomMoves:'No clearable tiles found in the bottom row',
+    msgTapHighlighted:'Tap the glowing tiles (next clear will be worth half score)',
+    msgHintPenalty:'Score was halved since you used a hint',
+    msgInfiniteDefault:'Keep tapping to clear as many as you can!',
+    msgUndoDone:'Move undone (score reduced by {penalty} pts)',
+    msgUndoDoneNoPenalty:'Move undone',
+    msgProcessError:'Something went wrong. Please tap "Start New Game"',
+    msgResultLine:'{prefix} Score {score} ({parts})・Time {time}',
+    msgResultLineSimple:'{prefix} Score {score}・Time {time}',
+    msgTimeUp:"Time's up! Score {score}",
+    msgStuckOrGiveup:'{prefix} Score {score}',
+    partBase:'Base {score}', partSpeed:'Speed Bonus {v}', partPerfect:'Perfect Bonus {v}',
+
+    diffTitle:'Choose a difficulty', diffSubtitle:'Change this anytime below',
+    diff_easy_name:'Easy', diff_easy_desc:'{colors} colors・{rows}×{cols} tiles',
+    diff_normal_name:'Normal', diff_normal_desc:'{colors} colors・{rows}×{cols} tiles・start from the bottom row',
+    diff_hard_name:'Hard', diff_hard_desc:'{colors} colors・{rows}×{cols} tiles・start from the bottom row',
+    diff_infinite_name:'♾️ Infinite', diff_infinite_desc:'Clear as many as you can in 30 seconds・tiles fall endlessly from above',
+    beginnerBadge:'New here? Start with this',
+    diffSummary:'{name} ({colors} colors・{rows}×{cols})',
+
+    tutorialTitle:'How to Play',
+    tutorial1:'🟢 Tap where <b>3 or more matching colors connect</b> to clear them',
+    tutorial2:'🔴 On <b>Normal/Hard</b>, your very first tap must be on the <b>bottom row</b>',
+    tutorial3:'💡 Stuck? Tap "Hint" to see a clearable spot (halves your next score)',
+    tutorial4:'↩️ "Undo" lets you redo your last move, but costs some score',
+    tutorialClose:"Got it, let's play!",
+
+    nicknameTitle:'Choose a nickname', nicknameSubtitle:"This name shows on the leaderboard (you can change it later)",
+    nicknamePlaceholder:'e.g. Alex', nicknameConfirm:'OK', nicknameCancel:'Cancel',
+    nicknameEmptyAlert:'Please enter a nickname',
+    nicknameInappropriateAlert:'That name was flagged as inappropriate. Please choose another one',
+    friendCodeLabel:'Friend code (share with friends)', friendCodePlaceholder:'e.g. ABC123',
+    ageGroupLabel:'Age group (optional)', ageSenior:'👴 Senior', ageAdult:'👨 Adult', ageYouth:'🧑\u200d🎓 Youth', ageSkip:'Prefer not to say',
+    friendCodeInvalidAlert:'Friend code must be 4-10 letters/numbers',
+    friendCodeTakenAlert:'That friend code is already taken. Please choose another',
+    groupBtn:'👥 Manage Groups',
+    groupTitle:'Groups', myFriendCodeLabel:'Your friend code:',
+    groupCreateLabel:'Create a group', groupNamePlaceholder:'e.g. Family', groupCreateBtn:'Create',
+    groupJoinLabel:'Join with invite code', groupJoinPlaceholder:'Invite code', groupJoinBtn:'Join',
+    groupInviteLabel:'Invite by friend code', groupInvitePlaceholder:"Friend's code", groupInviteBtn:'Add',
+    groupLeaveBtn:'Leave', groupLeaveConfirm:'Leave this group?',
+    groupMembersCount:'{count}',  groupInviteCodeLabel:'Invite code:',
+    groupNameEmptyAlert:'Please enter a group name',
+    groupLimitAlert:'You can join up to 3 groups',
+    groupErrorAlert:'A network error occurred. Please try again',
+    groupNotFoundAlert:'No group found with that invite code',
+    groupAlreadyJoinedAlert:"You're already in that group",
+    friendCodeNotFoundAlert:'No player found with that friend code',
+    friendCodeSelfAlert:"You can't invite yourself",
+    targetGroupFullAlert:'That player has reached their group limit (3)',
+    inviteSuccessAlert:'Added {name} to the group!',
+    mateBadge:'🤝 Friend',
+    categoryNational:'🌏 National', categoryGroupPrefix:'👥 ',
+
+    rankingJoin:'🏆 Join the Leaderboard',
+    rankingStatus:'🏆 Playing as <b>{name}</b>',
+    rankingChangeNickname:'Change Nickname', rankingLeave:'Leave Leaderboard',
+    rankingLeaveConfirm:'Leave the leaderboard?',
+    rankingViewToday:"Today's {label} Leaderboard", rankingViewGeneric:"Today's Leaderboard",
+    rankingLoading:'Loading…', rankingNoData:'No records yet today',
+    rankingLoadError:'Failed to load. Please try again',
+    youBadge:'You', positionSuffix:'', pointsSuffix:' pts',
+
+    resultTitlePerfect:'Perfect!!', resultTitleCleared:'Well done!',
+    resultTitleGiveup:'Gave Up!', resultTitleTimeUp:"Time's Up!",
+    resultTitleStuck:"Well done! No more moves left!",
+    resultScoreLabel:'Score', resultTimeLabel:'Time',
+    resultHighScore:'✨ New Daily High Score! ✨',
+    resultDemoBtn:'Watch Solution',
+    resultShareBtn:'🏆 Share Score', resultRankingBtn:"📊 View Today's Leaderboard",
+    resultNewGameBtn:'Start New Game', resultCloseBtn:'View Board',
+
+    calEmptyNote:'No records yet', calClose:'Close',
+    dayDetailNoRecord:"You have no record for this day yet",
+    dayRankingLoading:"🏆 Loading everyone's rankings…",
+    dayRankingTop3:'{label} Top 3:',
+    dayDetailLine:'{label}: Best {score} ({time})・Played {plays}x',
+
+    demoStop:'⏸ Stop', demoPlay:'▶ Play', demoReplay:'🔁 Watch Again',
+    demoThinking:'Working out a solution…', demoThinkingRestart:'Working out a solution from the start…',
+    demoPlayingRestart:"Playing the solution from the start… (your recorded score won't change)",
+    demoPlaying:"Playing the solution… (your recorded score won't change)",
+    demoPlayingPartial:"Playing the best solution found (couldn't clear everything from here)",
+    demoDonePerfect:"All cleared, just like the solution! Your recorded score is unchanged",
+    demoDonePartial:"That's as far as the solution goes. Your recorded score is unchanged",
+
+    shareText:'I scored {score} in {time} playing "{label}" mode in Color Match Puzzle! Try to beat it!',
+    shareCopiedAlert:'Score and link copied! Paste it anywhere to share',
+    sharePromptText:'Copy this text to share',
+    langToggle:'🌐 日本語'
+  }
+};
+function t(key,vars){
+  let s=(I18N[lang]&&I18N[lang][key]!==undefined)?I18N[lang][key]:(I18N.ja[key]!==undefined?I18N.ja[key]:key);
+  if(vars) for(const k in vars) s=s.split('{'+k+'}').join(vars[k]);
+  return s;
+}
+const CAL_DOW={ja:['日','月','火','水','木','金','土'],en:['S','M','T','W','T','F','S']};
+
+const DIFFICULTIES={
+  easy:  {label:'かんたん', colors:5, rows:6, cols:6, color:'var(--c1)', scoreMult:0.7, delayedMerges:0, firstTapBottomRow:false, targetTime:60,  timeBonusPerSec:2, maxStartGroupSize:null, perfectBonus:200, undoPenalty:30},
+  normal:{label:'ふつう',   colors:7, rows:6, cols:6, color:'var(--c2)', scoreMult:1,   delayedMerges:1, firstTapBottomRow:true,  targetTime:90,  timeBonusPerSec:4, maxStartGroupSize:9,   perfectBonus:400, undoPenalty:50},
+  hard:  {label:'むずかしい',colors:7, rows:9, cols:8, color:'var(--c5)', scoreMult:1.4, delayedMerges:3, firstTapBottomRow:true,  targetTime:150, timeBonusPerSec:8, maxStartGroupSize:9,   perfectBonus:800, undoPenalty:80},
+  infinite:{label:'むげん', colors:7, rows:9, cols:8, color:'var(--c4)', scoreMult:1.4, delayedMerges:0, firstTapBottomRow:true,  targetTime:30,  timeBonusPerSec:0, maxStartGroupSize:9,   perfectBonus:0, isInfinite:true, undoPenalty:80}
+};
+function diffName(key){ return t('diff_'+key+'_name'); }
+function diffDesc(key){ const d=DIFFICULTIES[key]; return t('diff_'+key+'_desc',{colors:d.colors,rows:d.rows,cols:d.cols}); }
+function diffSummary(key){ const d=DIFFICULTIES[key]; return t('diffSummary',{name:diffName(key),colors:d.colors,rows:d.rows,cols:d.cols}); }
+const STORAGE_KEY='puzzle-daily-records';
+const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
+
+// ---------- みんなのランキング(Supabase) ----------
+// ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
+const APP_VERSION='1.7.0';
+
+const SUPABASE_URL='https://jhrwpwpzxgxlvbartvqr.supabase.co/rest/v1/';
+const SUPABASE_KEY='sb_publishable_AaiMwnPXCL0oCfvQRqi9wA_x3Bl33da';
+const NICKNAME_KEY='puzzle-nickname';
+const RANKING_OPTIN_KEY='puzzle-ranking-optin';
+const USER_ID_KEY='puzzle-user-id';
+
+function getNickname(){ try{ return localStorage.getItem(NICKNAME_KEY)||''; }catch(e){ return ''; } }
+function setNickname(name){ try{ localStorage.setItem(NICKNAME_KEY,name); }catch(e){} }
+function isRankingOptedIn(){ try{ return localStorage.getItem(RANKING_OPTIN_KEY)==='1'; }catch(e){ return false; } }
+function setRankingOptedIn(v){ try{ localStorage.setItem(RANKING_OPTIN_KEY, v?'1':'0'); }catch(e){} }
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+// 簡易的な不適切ワードチェック(ニックネーム用)。全角/半角・大文字小文字・記号の紛れ込みをある程度吸収してから判定する
+const BAD_WORDS=[
+  'しね','死ね','殺す','ころす','きえろ','消えろ','ばか','馬鹿','あほ','アホ','くそ','クソ','糞',
+  'ちんこ','まんこ','おっぱい','せっくす','sex','fuck','shit','bitch','asshole','dick','pussy',
+  'nigger','nigga','faggot','ちょん','きちがい','気違い','キチガイ'
+];
+function normalizeForFilter(s){
+  return s
+    .toLowerCase()
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)) // 全角英数を半角に
+    .replace(/[\s　._\-!！?？*＊]/g,''); // 空白や記号での分断をある程度無効化
+}
+function containsInappropriateWord(name){
+  const norm=normalizeForFilter(name);
+  return BAD_WORDS.some(w=>norm.includes(normalizeForFilter(w)));
+}
+
+// 画面には出さない、端末ごとの一意なID。同じニックネームの人がいても別人として区別するために使う
+function getUserId(){
+  try{
+    let id=localStorage.getItem(USER_ID_KEY);
+    if(!id){
+      id=(window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('u-'+Date.now()+'-'+Math.random().toString(36).slice(2,10));
+      localStorage.setItem(USER_ID_KEY,id);
+    }
+    return id;
+  }catch(e){
+    return 'u-temp-'+Math.random().toString(36).slice(2,10);
+  }
+}
+
+// タイムアウト付きfetch。通信がずっと終わらない時に画面が固まるのを防ぐ
+async function fetchWithTimeout(url,options,timeoutMs){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{
+    return await fetch(url,{...options,signal:controller.signal});
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+// ---------- プロフィール(合言葉・年代) ----------
+const FRIEND_CODE_KEY='puzzle-friend-code';
+const AGE_GROUP_KEY='puzzle-age-group';
+function getFriendCode(){ try{ return localStorage.getItem(FRIEND_CODE_KEY)||''; }catch(e){ return ''; } }
+function setFriendCode(v){ try{ localStorage.setItem(FRIEND_CODE_KEY,v); }catch(e){} }
+function getAgeGroup(){ try{ return localStorage.getItem(AGE_GROUP_KEY)||''; }catch(e){ return ''; } }
+function setAgeGroup(v){ try{ localStorage.setItem(AGE_GROUP_KEY,v||''); }catch(e){} }
+
+function generateFriendCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 紛らわしい文字(0/O, 1/I)は除外
+  let s='';
+  for(let i=0;i<6;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+async function isFriendCodeTaken(code){
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?friend_code=eq.${encodeURIComponent(code)}&select=user_id`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return false;
+    const rows=await res.json();
+    return rows.some(r=>r.user_id!==getUserId());
+  }catch(e){ return false; }
+}
+
+// プロフィールを取得し、無ければ合言葉を自動発行して作成する(既存ユーザーの自動移行も兼ねる)
+async function ensureProfile(){
+  const uid=getUserId();
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=eq.${uid}&select=*`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(res.ok){
+      const rows=await res.json();
+      if(rows.length){
+        setFriendCode(rows[0].friend_code||'');
+        setAgeGroup(rows[0].age_group||'');
+        return rows[0];
+      }
+    }
+  }catch(e){ console.error('プロフィール取得に失敗しました',e); }
+
+  // 存在しなければ新規作成(合言葉は自動発行)
+  const nickname=getNickname()||'Player';
+  for(let i=0;i<3;i++){
+    const code=generateFriendCode();
+    try{
+      const res=await fetchWithTimeout(`${SUPABASE_URL}profiles`,{
+        method:'POST',
+        headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+        body:JSON.stringify({user_id:uid,nickname,friend_code:code})
+      },6000);
+      if(res.ok){
+        const rows=await res.json();
+        if(rows.length){
+          setFriendCode(rows[0].friend_code||'');
+          setAgeGroup(rows[0].age_group||'');
+          return rows[0];
+        }
+      }
+    }catch(e){ console.error('プロフィール作成に失敗しました',e); }
+  }
+  return null;
+}
+
+async function upsertProfile(fields){
+  const uid=getUserId();
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=eq.${uid}`,{
+      method:'PATCH',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+      body:JSON.stringify(fields)
+    },6000);
+    if(res.ok){
+      const rows=await res.json();
+      if(rows.length) return rows[0];
+    }
+  }catch(e){ console.error('プロフィール更新に失敗しました',e); }
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles`,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+      body:JSON.stringify({user_id:uid,...fields})
+    },6000);
+    if(res.ok){ const rows=await res.json(); return rows[0]; }
+  }catch(e){ console.error('プロフィール作成に失敗しました',e); }
+  return null;
+}
+
+// ---------- グループ ----------
+const MAX_GROUPS=3;
+function generateInviteCode(){ return generateFriendCode(); }
+
+async function fetchMyGroups(){
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}group_members?user_id=eq.${getUserId()}&select=group_id,groups(id,name,invite_code)`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return [];
+    const rows=await res.json();
+    return rows.map(r=>r.groups).filter(Boolean);
+  }catch(e){ console.error('グループ取得に失敗しました',e); return []; }
+}
+async function fetchGroupMemberIds(groupId){
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}group_members?group_id=eq.${groupId}&select=user_id`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return new Set();
+    const rows=await res.json();
+    return new Set(rows.map(r=>r.user_id));
+  }catch(e){ return new Set(); }
+}
+async function fetchAllMyGroupMateIds(){
+  const myGroups=await fetchMyGroups();
+  const ids=new Set();
+  for(const g of myGroups){
+    const s=await fetchGroupMemberIds(g.id);
+    s.forEach(id=>{ if(id!==getUserId()) ids.add(id); });
+  }
+  return ids;
+}
+async function fetchUserIdsByAgeGroup(age){
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?age_group=eq.${age}&select=user_id`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return new Set();
+    const rows=await res.json();
+    return new Set(rows.map(r=>r.user_id));
+  }catch(e){ return new Set(); }
+}
+
+// 起動時に、公開されている最新のファイルとバージョンを比べて、古ければ自動でリロードする
+async function checkForUpdate(){
+  try{
+    const url=location.href.split('#')[0].split('?')[0];
+    // AbortSignal+cache:'no-store'の組み合わせが一部ブラウザで不具合を起こすことがあるため、
+    // ここではAbortControllerを使わず、Promise.raceだけでタイムアウトさせる
+    const fetchPromise=fetch(url+'?v='+Date.now(),{cache:'no-store'});
+    const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('timeout')),4000));
+    const res=await Promise.race([fetchPromise,timeoutPromise]);
+    if(!res.ok) return;
+    const text=await res.text();
+    const match=text.match(/<meta name="app-version" content="([^"]+)">/);
+    if(match && match[1] && match[1]!==APP_VERSION){
+      location.reload();
+    }
+  }catch(e){
+    console.error('更新チェックに失敗しました',e);
+  }
+}
+
+// 同じ人(user_id)が複数あれば、いちばん高いスコアだけ残す。古いデータでuser_idが無い場合はニックネームで代用
+function dedupeTopByUser(rows,topN){
+  const bestByKey=new Map();
+  for(const r of rows){
+    const key=r.user_id || ('name:'+r.nickname);
+    const cur=bestByKey.get(key);
+    if(!cur || r.score>cur.score) bestByKey.set(key,r);
+  }
+  return Array.from(bestByKey.values()).sort((a,b)=>b.score-a.score).slice(0,topN);
+}
+
+async function supabaseInsertScore(nickname,diff,scoreVal,timeSec){
+  try{
+    await fetchWithTimeout(SUPABASE_URL+'scores',{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'return=minimal'
+      },
+      body:JSON.stringify({nickname,difficulty:diff,score:scoreVal,time_sec:timeSec,user_id:getUserId()})
+    },6000);
+  }catch(e){ console.error('ランキング送信に失敗しました',e); }
+}
+// スコアには記録した時点のニックネームが入っているので、表示直前に「今のニックネーム」に差し替える
+async function overrideWithCurrentNicknames(rows){
+  const ids=[...new Set(rows.map(r=>r.user_id).filter(Boolean))];
+  if(!ids.length) return rows;
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?user_id=in.(${ids.join(',')})&select=user_id,nickname`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return rows;
+    const profs=await res.json();
+    const map=new Map(profs.map(p=>[p.user_id,p.nickname]));
+    return rows.map(r=> map.has(r.user_id) ? {...r,nickname:map.get(r.user_id)} : r);
+  }catch(e){ console.error('最新ニックネームの取得に失敗しました',e); return rows; }
+}
+
+async function supabaseFetchTop(playDate,diff,limit){
+  try{
+    // 重複排除の余地を持たせるため、少し多めに取得してから同じ人ごとに最高点だけ残す
+    const url=`${SUPABASE_URL}scores?play_date=eq.${playDate}&difficulty=eq.${diff}&select=nickname,score,time_sec,user_id&order=score.desc&limit=50`;
+    const res=await fetchWithTimeout(url,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return [];
+    const rows=await res.json();
+    const deduped=dedupeTopByUser(rows,limit);
+    return await overrideWithCurrentNicknames(deduped);
+  }catch(e){ console.error('ランキング取得に失敗しました',e); return []; }
+}
+
+// 自分の順位も分かるように、その日の全員分(重複排除済み)を取得する
+async function supabaseFetchFullBoard(playDate,diff){
+  try{
+    const url=`${SUPABASE_URL}scores?play_date=eq.${playDate}&difficulty=eq.${diff}&select=nickname,score,time_sec,user_id&order=score.desc&limit=300`;
+    const res=await fetchWithTimeout(url,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return [];
+    const rows=await res.json();
+    const deduped=dedupeTopByUser(rows,300);
+    return await overrideWithCurrentNicknames(deduped);
+  }catch(e){ console.error('ランキング取得に失敗しました',e); return []; }
+}
+
+let difficulty=null;
+let ROWS=6, COLS=6, COLORS=5;
+let grid=[];
+let initialGrid=[]; // そのラウンド開始時点の盤面(おつかれさま後のお手本再生で使用)
+let score=0;
+let startTime=0;
+let timerHandle=null;
+let busy=false;
+let roundOver=true;      // ゲーム開始前はtrue(操作不可)
+let hintPenaltyPending=false; // ヒントを使った直後は、次に消した時のスコアが半分になる
+let firstMoveDone=false; // ふつう・むずかしいでは、最初の1回だけ一番下の行を消す必要がある
+let undoSnapshot=null; // 直前の1手を戻すためのスナップショット(1回分だけ)
+let records={};
+let calMonthOffset=0;
+
+const boardEl=document.getElementById('board');
+const scoreEl=document.getElementById('scoreValue');
+const timeEl=document.getElementById('timeValue');
+const msgEl=document.getElementById('msg');
+const diffLabelEl=document.getElementById('diffLabel');
+const giveupBtn=document.getElementById('giveupBtn');
+const hintBtn=document.getElementById('hintBtn');
+const undoBtn=document.getElementById('undoBtn');
+
+function pad(n){return n.toString().padStart(2,'0');}
+function dateKey(d){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+function fmtTime(sec){return `${pad(Math.floor(sec/60))}:${pad(sec%60)}`;}
+
+function todayLabel(){
+  const d=new Date();
+  const text = lang==='en'
+    ? d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric',weekday:'short'})
+    : `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日(${CAL_DOW.ja[d.getDay()]})`;
+  document.getElementById('todayLabel').textContent=text;
+}
+
+// ---------- storage (スマホ内のブラウザに保存。ログイン不要) ----------
+async function loadRecords(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    records=raw ? JSON.parse(raw) : {};
+  }catch(e){
+    console.error('読み込みに失敗しました',e);
+    records={};
+  }
+}
+async function saveRecords(){
+  try{
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(records));
+  }catch(e){
+    console.error('保存に失敗しました',e);
+  }
+}
+async function recordRound(finalScore,elapsedSec){
+  const key=dateKey(new Date());
+  if(!records[key]) records[key]={};
+  const cur=records[key][difficulty]||{bestScore:0,bestTime:0,plays:0};
+  const hadPriorPlay=cur.plays>0;
+  const previousBest=cur.bestScore;
+  cur.plays+=1;
+  let isNewHighScore=false;
+  if(finalScore>=cur.bestScore){
+    if(hadPriorPlay && finalScore>previousBest) isNewHighScore=true;
+    cur.bestScore=finalScore;
+    cur.bestTime=elapsedSec;
+  }
+  records[key][difficulty]=cur;
+  await saveRecords();
+  return isNewHighScore;
+}
+
+// ---------- timer ----------
+function startTimer(){
+  clearInterval(timerHandle);
+  startTime=Date.now();
+  timeEl.textContent='00:00';
+  timerHandle=setInterval(()=>{
+    const sec=Math.floor((Date.now()-startTime)/1000);
+    timeEl.textContent=fmtTime(sec);
+  },1000);
+}
+function stopTimer(){
+  clearInterval(timerHandle);
+  return Math.floor((Date.now()-startTime)/1000);
+}
+
+// むげんモード用の、逆にカウントダウンしていくタイマー。0になったら自動でラウンド終了
+function startCountdown(seconds,onTimeUp){
+  clearInterval(timerHandle);
+  startTime=Date.now();
+  const totalMs=seconds*1000;
+  timeEl.textContent=fmtTime(seconds);
+  timerHandle=setInterval(()=>{
+    const remainMs=totalMs-(Date.now()-startTime);
+    const remainSec=Math.max(0,Math.ceil(remainMs/1000));
+    timeEl.textContent=fmtTime(remainSec);
+    if(remainMs<=0){
+      clearInterval(timerHandle);
+      onTimeUp();
+    }
+  },200);
+}
+
+// ---------- grid logic ----------
+function randColor(){return Math.floor(Math.random()*COLORS);}
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+function cloneGrid(g){ return g.map(row=>row.slice()); }
+function cellKey(r,c){ return r+'_'+c; }
+
+// 盤面を「3〜5マスの繋がった塊」で隙間なく敷き詰める(全消し可能な盤面のもと)
+function tileBoard(){
+  const grid=[];
+  for(let r=0;r<ROWS;r++) grid.push(new Array(COLS).fill(null));
+  const claimed=new Set();
+  const order=[];
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) order.push([r,c]);
+  shuffle(order);
+
+  const nbrs=(r,c)=>[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([nr,nc])=>nr>=0&&nr<ROWS&&nc>=0&&nc<COLS);
+
+  for(const [r,c] of order){
+    if(claimed.has(cellKey(r,c))) continue;
+    const color=randColor();
+    const targetSize=3+Math.floor(Math.random()*2); // 3〜4マス(小さめの塊にして難易度アップ)
+    const region=[[r,c]];
+    claimed.add(cellKey(r,c));
+    grid[r][c]=color;
+    let frontier=nbrs(r,c).filter(([nr,nc])=>!claimed.has(cellKey(nr,nc)));
+    while(region.length<targetSize && frontier.length>0){
+      const idx=Math.floor(Math.random()*frontier.length);
+      const [nr,nc]=frontier.splice(idx,1)[0];
+      if(claimed.has(cellKey(nr,nc))) continue;
+      claimed.add(cellKey(nr,nc));
+      grid[nr][nc]=color;
+      region.push([nr,nc]);
+      nbrs(nr,nc).forEach(n=>{ if(!claimed.has(cellKey(n[0],n[1]))) frontier.push(n); });
+    }
+    if(region.length<3){
+      // 3マス未満で終わった小さすぎる塊は、隣り合う既存の色に塗り替えて吸収する
+      let absorbColor=null;
+      for(const [rr,cc] of region){
+        for(const [nr,nc] of nbrs(rr,cc)){
+          if(claimed.has(cellKey(nr,nc)) && !region.some(([xr,xc])=>xr===nr&&xc===nc)){
+            absorbColor=grid[nr][nc]; break;
+          }
+        }
+        if(absorbColor!==null) break;
+      }
+      if(absorbColor!==null){
+        region.forEach(([rr,cc])=>{ grid[rr][cc]=absorbColor; });
+      }
+    }
+  }
+  return grid;
+}
+
+// 盤面上の「今タップで消せるグループ」をすべて集める
+function allGroups(g){
+  const seen=new Set();
+  const groups=[];
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const key=cellKey(r,c);
+      if(seen.has(key)) continue;
+      if(g[r][c]===null||g[r][c]===undefined){ seen.add(key); continue; }
+      const group=findGroup(g,r,c);
+      group.forEach(([gr,gc])=>seen.add(cellKey(gr,gc)));
+      if(group.length>=3) groups.push(group);
+    }
+  }
+  return groups;
+}
+
+// ランダムな順番で何度も自動プレイしてみて、全部消し切れる手順が見つかるか探す
+function trySolveFull(startGrid,attempts,requireFirstBottom){
+  for(let a=0;a<attempts;a++){
+    let g=cloneGrid(startGrid);
+    const sequence=[];
+    let first=true;
+    while(true){
+      let groups=allGroups(g);
+      if(groups.length===0) break;
+      if(first && requireFirstBottom){
+        // 最初の1手は、一番下の行を含むグループしか選べない(ふつう・むずかしいのルールに合わせる)
+        groups=groups.filter(gr=>gr.some(([r,c])=>r===ROWS-1));
+        if(groups.length===0) break;
+      }
+      const pick=groups[Math.floor(Math.random()*groups.length)];
+      sequence.push(pick);
+      pick.forEach(([r,c])=>{ g[r][c]=null; });
+      g=applyGravityAndCompact(g);
+      first=false;
+    }
+    const isEmpty=g.every(row=>row.every(cell=>cell===null));
+    if(isEmpty) return sequence;
+  }
+  return null;
+}
+
+// 「上から落とさないと3個以上にならないグループ」をわざと仕込む(ふつう・むずかしい用)
+function injectDelayedMerge(grid,count){
+  let injected=0, attempts=0;
+  if(ROWS<5) return 0;
+  while(injected<count && attempts<200){
+    attempts++;
+    const c=Math.floor(Math.random()*COLS);
+    const r0=Math.floor(Math.random()*(ROWS-4));
+    const T=randColor();
+    let B=randColor();
+    while(B===T) B=randColor();
+    // 縦に: T(1つだけ) → B,B(邪魔なブロック) → T,T(2つ) の並びにする
+    grid[r0][c]=T;
+    grid[r0+1][c]=B;
+    grid[r0+2][c]=B;
+    grid[r0+3][c]=T;
+    grid[r0+4][c]=T;
+    // 邪魔なブロックB自体はちゃんと3マス以上で消せるように、隣の列にも1マス伸ばす
+    const neighborCols=[c-1,c+1].filter(nc=>nc>=0&&nc<COLS);
+    if(neighborCols.length>0){
+      const nc=neighborCols[Math.floor(Math.random()*neighborCols.length)];
+      const whichRow = Math.random()<0.5 ? r0+1 : r0+2;
+      grid[whichRow][nc]=B;
+    }
+    injected++;
+  }
+  return injected;
+}
+
+// スタート時点で同じ色がmaxSize個より多く繋がっていたら、超過分だけ周りと被らない色に塗り直す
+function capGroupSizes(grid,maxSize){
+  let iterations=0;
+  while(iterations<30){
+    iterations++;
+    const groups=allGroups(grid);
+    const big=groups.find(g=>g.length>maxSize);
+    if(!big) break;
+    const excess=big.slice(maxSize);
+    const boundaryColors=new Set();
+    for(const [r,c] of excess){
+      for(const [nr,nc] of neighbors(r,c)){
+        if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS && grid[nr][nc]!==null && !excess.some(([er,ec])=>er===nr&&ec===nc)){
+          boundaryColors.add(grid[nr][nc]);
+        }
+      }
+    }
+    const options=[];
+    for(let k=0;k<COLORS;k++) if(!boundaryColors.has(k)) options.push(k);
+    const newColor = options.length ? options[Math.floor(Math.random()*options.length)] : randColor();
+    excess.forEach(([r,c])=>{ grid[r][c]=newColor; });
+  }
+  return grid;
+}
+
+function makeGrid(){
+  const d=DIFFICULTIES[difficulty]||{};
+  if(d.isInfinite) return makeInfiniteGrid();
+  const GEN_RETRIES=200, SOLVE_ATTEMPTS=40;
+  const delayedCount = d.delayedMerges || 0;
+  const requireFirstBottom = !!d.firstTapBottomRow;
+  const maxStart = d.maxStartGroupSize || null;
+  for(let i=0;i<GEN_RETRIES;i++){
+    let g=tileBoard();
+    if(delayedCount>0) injectDelayedMerge(g,delayedCount);
+    if(maxStart) g=capGroupSizes(g,maxStart);
+    // 実際のプレイと同じ「最初の1手は一番下の行」ルールの下で、全消しできることを検証する
+    if(trySolveFull(g,SOLVE_ATTEMPTS,requireFirstBottom)) return g;
+  }
+  return tileBoard(); // 万一見つからない場合の保険(ごくまれ)
+}
+
+// むげんモード用: 全消し保証は不要。最初の一手が一番下の行にあることだけ確認する軽量版
+function makeInfiniteGrid(){
+  const d=DIFFICULTIES.infinite;
+  const maxStart=d.maxStartGroupSize;
+  for(let i=0;i<50;i++){
+    let g=tileBoard();
+    if(maxStart) g=capGroupSizes(g,maxStart);
+    const bottomGroups=allGroups(g).filter(gr=>gr.some(([r,c])=>r===ROWS-1));
+    if(bottomGroups.length>0) return g;
+  }
+  return tileBoard();
+}
+
+// むげんモード用: 空いた上の方に新しい色を無限に補充する
+function refillColumns(grid){
+  for(let c=0;c<COLS;c++){
+    for(let r=0;r<ROWS;r++){
+      if(grid[r][c]===null) grid[r][c]=randColor();
+      else break; // 上から順にnullが並んでいる前提なので、埋まってるマスに当たったら次の列へ
+    }
+  }
+  return grid;
+}
+function neighbors(r,c){return [[r-1,c],[r+1,c],[r,c-1],[r,c+1]];}
+function findGroup(g,r,c){
+  const color=g[r][c];
+  if(color===null||color===undefined) return [];
+  const seen=new Set();
+  const stack=[[r,c]];
+  const group=[];
+  while(stack.length){
+    const [cr,cc]=stack.pop();
+    const k=cr+'_'+cc;
+    if(seen.has(k)) continue;
+    seen.add(k);
+    if(cr<0||cr>=ROWS||cc<0||cc>=COLS) continue;
+    if(g[cr][cc]!==color) continue;
+    group.push([cr,cc]);
+    for(const [nr,nc] of neighbors(cr,cc)) stack.push([nr,nc]);
+  }
+  return group;
+}
+function hasMove(g){
+  return allGroups(g).length>0;
+}
+// 盤面全体を走査して、いちばん大きく繋がっているグループを探す(ヒントで使用)
+function bestGroup(g){
+  const groups=allGroups(g);
+  if(groups.length===0) return null;
+  return groups.reduce((a,b)=>b.length>a.length?b:a);
+}
+function applyGravityAndCompact(g){
+  // 縦方向にだけ落とす(空いた列を左に詰めるのはしない)
+  for(let c=0;c<COLS;c++){
+    const remaining=[];
+    for(let r=0;r<ROWS;r++) if(g[r][c]!==null) remaining.push(g[r][c]);
+    const newCol=new Array(ROWS-remaining.length).fill(null).concat(remaining);
+    for(let r=0;r<ROWS;r++) g[r][c]=newCol[r];
+  }
+  return g;
+}
+
+function render(){
+  boardEl.style.aspectRatio=`${COLS}/${ROWS}`;
+  boardEl.style.gridTemplateColumns=`repeat(${COLS},1fr)`;
+  boardEl.style.gridTemplateRows=`repeat(${ROWS},1fr)`;
+  boardEl.innerHTML='';
+  const fontSize = COLS>=8 ? 'clamp(14px,3.6vw,20px)' : 'clamp(18px,5vw,26px)';
+  const lockNonBottom = DIFFICULTIES[difficulty] && DIFFICULTIES[difficulty].firstTapBottomRow && !firstMoveDone;
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const val=grid[r][c];
+      const btn=document.createElement('button');
+      let cls='cell'+(val===null?' empty':' c'+val);
+      if(lockNonBottom && val!==null && r!==ROWS-1) cls+=' locked';
+      btn.className=cls;
+      btn.style.fontSize=fontSize;
+      if(val!==null) btn.textContent=SYMBOLS[val];
+      btn.dataset.r=r; btn.dataset.c=c;
+      btn.addEventListener('click',onCellTap);
+      boardEl.appendChild(btn);
+    }
+  }
+  scoreEl.textContent=score;
+}
+
+async function onCellTap(e){
+  if(busy||roundOver) return;
+  const r=parseInt(e.currentTarget.dataset.r,10);
+  const c=parseInt(e.currentTarget.dataset.c,10);
+  if(!grid[r] || grid[r][c]===null || grid[r][c]===undefined) return;
+
+  if(DIFFICULTIES[difficulty].firstTapBottomRow && !firstMoveDone && r!==ROWS-1){
+    e.currentTarget.classList.add('shake');
+    setTimeout(()=>{ e.currentTarget && e.currentTarget.classList.remove('shake'); },300);
+    msgEl.textContent=t('msgBottomFirst');
+    setTimeout(()=>{ if(!roundOver && !busy) msgEl.textContent=t('msgDefault'); },2200);
+    return;
+  }
+
+  const group=findGroup(grid,r,c);
+  if(group.length<3){
+    e.currentTarget.classList.add('shake');
+    setTimeout(()=>{ e.currentTarget && e.currentTarget.classList.remove('shake'); },300);
+    return;
+  }
+
+  busy=true;
+  try{
+    const d=DIFFICULTIES[difficulty];
+    if(!d.isInfinite){
+      // 1手戻る用に、この手を打つ前の状態を保存しておく(1回分だけ)
+      undoSnapshot={grid:cloneGrid(grid),score,firstMoveDone};
+      undoBtn.disabled=false;
+    }
+    firstMoveDone=true;
+    let gained=Math.round(group.length*(group.length-1)*5*DIFFICULTIES[difficulty].scoreMult);
+    let penalized=false;
+    if(hintPenaltyPending){
+      gained=Math.floor(gained/2);
+      hintPenaltyPending=false;
+      penalized=true;
+    }
+    score += gained;
+    scoreEl.textContent=score;
+
+    for(const [gr,gc] of group){
+      const idx=gr*COLS+gc;
+      const el=boardEl.children[idx];
+      if(el) el.classList.add('pop');
+    }
+    await new Promise(res=>setTimeout(res,180));
+
+    for(const [gr,gc] of group) grid[gr][gc]=null;
+    grid=applyGravityAndCompact(grid);
+
+    if(d.isInfinite){
+      // むげんモードは上から新しい色を補充し続けるが、それでも消せる場所が無くなったらそこで終了
+      refillColumns(grid);
+      if(d.maxStartGroupSize) capGroupSizes(grid,d.maxStartGroupSize);
+      render();
+      if(!hasMove(grid)){
+        await finishInfiniteStuck();
+      }else if(penalized){
+        msgEl.textContent=t('msgHintPenalty');
+        setTimeout(()=>{ if(!roundOver) msgEl.textContent=t('msgInfiniteDefault'); },1500);
+      }
+    }else{
+      render();
+      if(!hasMove(grid)){
+        const isPerfect = grid.every(row=>row.every(cell=>cell===null));
+        await finishRound(isPerfect ? t('resultTitlePerfect') : t('resultTitleCleared'), true, isPerfect);
+      }else if(penalized){
+        msgEl.textContent=t('msgHintPenalty');
+        setTimeout(()=>{ if(!roundOver) msgEl.textContent=t('msgDefault'); },2200);
+      }
+    }
+  }catch(err){
+    console.error('パズル処理でエラーが発生しました',err);
+    msgEl.textContent=t('msgProcessError');
+  }finally{
+    busy=false;
+  }
+}
+
+async function finishRound(prefix,allowTimeBonus,isPerfect){
+  roundOver=true;
+  updateGiveupButton();
+  hintBtn.disabled=true;
+  const elapsed=stopTimer();
+  const d=DIFFICULTIES[difficulty];
+  // 何か1つでも消せていて、かつギブアップでない場合だけ「はやさボーナス」が付く
+  const timeBonus = (allowTimeBonus && score>0) ? Math.max(0, d.targetTime-elapsed)*d.timeBonusPerSec : 0;
+  const finalScoreBeforePerfect = score+timeBonus;
+  const perfectBonus = isPerfect ? d.perfectBonus : 0;
+  const finalScore = finalScoreBeforePerfect+perfectBonus;
+
+  const parts=[t('partBase',{score})];
+  if(timeBonus>0) parts.push(t('partSpeed',{v:timeBonus}));
+  if(perfectBonus>0) parts.push(t('partPerfect',{v:perfectBonus}));
+  msgEl.textContent = parts.length>1
+    ? t('msgResultLine',{prefix,score:finalScore,parts:parts.join('+'),time:fmtTime(elapsed)})
+    : t('msgResultLineSimple',{prefix,score:finalScore,time:fmtTime(elapsed)});
+  const isNewHighScore = await recordRound(finalScore,elapsed);
+  // ランキング参加中なら、何か1つでも消せていればスコアを送信する(通信失敗しても無視)
+  if(isRankingOptedIn() && finalScore>0){
+    supabaseInsertScore(getNickname(),difficulty,finalScore,elapsed);
+  }
+  showResultPopup(prefix,finalScore,elapsed,score,timeBonus,!!isPerfect,perfectBonus,isNewHighScore);
+}
+
+function showResultPopup(prefix,finalScore,elapsedSec,baseScore,timeBonus,isPerfect,perfectBonus,isNewHighScore){
+  document.getElementById('resultTitle').textContent=prefix;
+  document.getElementById('resultDiff').textContent=diffSummary(difficulty);
+  document.getElementById('resultScore').textContent=finalScore;
+  document.getElementById('resultTime').textContent=fmtTime(elapsedSec);
+  document.getElementById('resultHighScore').style.display = isNewHighScore ? 'block' : 'none';
+  const breakdownEl=document.getElementById('resultBreakdown');
+  const parts=[];
+  if(timeBonus>0) parts.push(t('partSpeed',{v:timeBonus}));
+  if(perfectBonus>0) parts.push(t('partPerfect',{v:perfectBonus}));
+  if(parts.length){
+    breakdownEl.textContent=`(${t('partBase',{score:baseScore})} + ${parts.join(' + ')})`;
+    breakdownEl.style.display='block';
+  }else{
+    breakdownEl.style.display='none';
+  }
+  const demoBtn=document.getElementById('resultDemoBtn');
+  demoBtn.style.display='block';
+  demoBtn.disabled=false;
+  demoBtn.textContent=t('resultDemoBtn');
+  document.querySelector('#resultOverlay .result-card').classList.toggle('perfect',isPerfect);
+  document.getElementById('resultOverlay').classList.add('show');
+}
+function hideResultPopup(){
+  document.getElementById('resultOverlay').classList.remove('show');
+}
+
+// ---------- スコアの共有 ----------
+async function shareScore(){
+  const scoreText=document.getElementById('resultScore').textContent;
+  const timeText=document.getElementById('resultTime').textContent;
+  const shareText=t('shareText',{label:diffName(difficulty),score:scoreText,time:timeText});
+  const url=location.href;
+
+  if(navigator.share){
+    try{
+      await navigator.share({title:t('appTitle'),text:shareText,url});
+    }catch(e){ /* 共有シートをキャンセルした場合などは何もしない */ }
+    return;
+  }
+  const fullText=`${shareText}\n${url}`;
+  try{
+    await navigator.clipboard.writeText(fullText);
+    alert(t('shareCopiedAlert'));
+  }catch(e){
+    prompt(t('sharePromptText'),fullText);
+  }
+}
+document.getElementById('resultShareBtn').addEventListener('click',shareScore);
+
+async function giveUp(){
+  if(roundOver||busy) return;
+  await finishRound(t('resultTitleGiveup'),false);
+}
+
+// ギブアップ/新しいゲームを始める、を1つのボタンにまとめて、状態に応じて見た目と動作を切り替える
+function updateGiveupButton(){
+  giveupBtn.textContent = roundOver ? t('giveupBtnIdle') : t('giveupBtnPlaying');
+  giveupBtn.disabled=false;
+}
+function onGiveupBtnClick(){
+  if(roundOver){ showDiffPopup(); }else{ giveUp(); }
+}
+
+// ---------- 1手戻る(使うとスコアが少し減る) ----------
+async function undoLastMove(){
+  if(!undoSnapshot||roundOver||busy) return;
+  busy=true;
+  try{
+    const d=DIFFICULTIES[difficulty];
+    const penalty=d.undoPenalty||0;
+    grid=cloneGrid(undoSnapshot.grid);
+    score=Math.max(0,score-penalty);
+    firstMoveDone=undoSnapshot.firstMoveDone;
+    undoSnapshot=null;
+    undoBtn.disabled=true;
+    render();
+    msgEl.textContent = penalty>0 ? t('msgUndoDone',{penalty}) : t('msgUndoDoneNoPenalty');
+    setTimeout(()=>{
+      if(!roundOver && !busy){
+        msgEl.textContent = (DIFFICULTIES[difficulty].firstTapBottomRow && !firstMoveDone)
+          ? t('msgBottomFirst')
+          : t('msgDefault');
+      }
+    },2200);
+  }finally{
+    busy=false;
+  }
+}
+undoBtn.addEventListener('click',undoLastMove);
+
+// ---------- ヒント(使うと次に消した時のスコアが半分になる) ----------
+async function showHint(){
+  if(roundOver||busy) return;
+  const restrictBottom = DIFFICULTIES[difficulty].firstTapBottomRow && !firstMoveDone;
+  let group;
+  if(restrictBottom){
+    const candidates=allGroups(grid).filter(g=>g.some(([r,c])=>r===ROWS-1));
+    group = candidates.length ? candidates.reduce((a,b)=>b.length>a.length?b:a) : null;
+    if(!group){
+      msgEl.textContent=t('msgNoBottomMoves');
+      return;
+    }
+  }else{
+    group=bestGroup(grid);
+  }
+  if(!group){
+    msgEl.textContent=t('msgNoMoves');
+    return;
+  }
+  hintPenaltyPending=true;
+  msgEl.textContent=t('msgTapHighlighted');
+  group.forEach(([r,c])=>{
+    const el=boardEl.children[r*COLS+c];
+    if(el) el.classList.add('hint');
+  });
+  setTimeout(()=>{
+    group.forEach(([r,c])=>{
+      const el=boardEl.children[r*COLS+c];
+      if(el) el.classList.remove('hint');
+    });
+  },1800);
+}
+
+// ---------- お手本の自動再生 ----------
+function sleep(ms){return new Promise(res=>setTimeout(res,ms));}
+let demoPaused=false;
+// 一時停止中は進めず、再開されたら続きから進む「止められるsleep」
+async function sleepPausable(ms){
+  let elapsed=0;
+  const step=80;
+  while(elapsed<ms){
+    await sleep(step);
+    if(!demoPaused) elapsed+=step;
+  }
+}
+
+const demoControls=document.getElementById('demoControls');
+const demoStopBtn=document.getElementById('demoStopBtn');
+const demoPlayBtn=document.getElementById('demoPlayBtn');
+const demoReplayBtn=document.getElementById('demoReplayBtn');
+demoStopBtn.addEventListener('click',()=>{
+  demoPaused=true;
+  demoStopBtn.disabled=true;
+  demoPlayBtn.disabled=false;
+});
+demoPlayBtn.addEventListener('click',()=>{
+  demoPaused=false;
+  demoStopBtn.disabled=false;
+  demoPlayBtn.disabled=true;
+});
+demoReplayBtn.addEventListener('click',replayDemo);
+
+let demoStartGrid=null;   // 再生を開始した時点の盤面(もう一度見る、で使う)
+let demoSequence=null;    // 見つかった消す順番
+let demoFullyClearable=false;
+let demoRestarted=false;
+
+async function autoSolveDemo(){
+  const demoBtn=document.getElementById('resultDemoBtn');
+  demoBtn.disabled=true;
+  hideResultPopup();
+  demoPaused=false;
+  msgEl.textContent=t('demoThinking');
+  await sleep(30); // メッセージを画面に反映させてから重い処理へ
+
+  demoRestarted=false;
+  if(!hasMove(grid)){
+    // 「おつかれさま」で終わった場合など、今の盤面はもう詰んでいるので、
+    // ラウンド開始時の盤面まで巻き戻してから解き方を見せる
+    grid=cloneGrid(initialGrid);
+    render();
+    demoRestarted=true;
+    msgEl.textContent=t('demoThinkingRestart');
+    await sleepPausable(500);
+  }
+
+  demoStartGrid=cloneGrid(grid); // ここから、もう一度再生できるように保存しておく
+
+  // このラウンドでまだ最初の一手を消化していない状態からの再生なら、
+  // お手本の最初の一手も「一番下の行」限定にする(かんたん以外)
+  const requireFirstBottom = DIFFICULTIES[difficulty].firstTapBottomRow && (demoRestarted || !firstMoveDone);
+
+  let sequence=trySolveFull(grid,150,requireFirstBottom);
+  demoFullyClearable=!!sequence;
+  if(!sequence){
+    // 途中の手の順番によっては全消しできない場合もあるので、その時は「消せるだけ」見せる
+    sequence=[];
+    let g=cloneGrid(grid);
+    let first=true;
+    while(true){
+      let groups=allGroups(g);
+      if(groups.length===0) break;
+      if(first && requireFirstBottom){
+        groups=groups.filter(gr=>gr.some(([r,c])=>r===ROWS-1));
+        if(groups.length===0) break;
+      }
+      const group = groups.reduce((a,b)=>b.length>a.length?b:a);
+      sequence.push(group);
+      group.forEach(([r,c])=>{ g[r][c]=null; });
+      g=applyGravityAndCompact(g);
+      first=false;
+    }
+  }
+  demoSequence=sequence;
+
+  await playDemoSequence();
+}
+
+async function playDemoSequence(){
+  demoPaused=false;
+  demoStopBtn.style.display='inline-block';
+  demoPlayBtn.style.display='inline-block';
+  demoReplayBtn.style.display='none';
+  demoStopBtn.disabled=false;
+  demoPlayBtn.disabled=true;
+  demoControls.style.display='flex';
+
+  msgEl.textContent = demoFullyClearable
+    ? (demoRestarted ? t('demoPlayingRestart') : t('demoPlaying'))
+    : t('demoPlayingPartial');
+
+  for(const group of demoSequence){
+    // 1. まず消える範囲を光らせて囲う
+    group.forEach(([r,c])=>{
+      const el=boardEl.children[r*COLS+c];
+      if(el) el.classList.add('hint');
+    });
+    await sleepPausable(900);
+
+    // 2. 光った範囲を消すアニメーション
+    group.forEach(([r,c])=>{
+      const el=boardEl.children[r*COLS+c];
+      if(el){ el.classList.remove('hint'); el.classList.add('pop'); }
+    });
+    await sleepPausable(600);
+
+    // 3. 実際に消して、落として、次へ
+    group.forEach(([r,c])=>{ grid[r][c]=null; });
+    grid=applyGravityAndCompact(grid);
+    render();
+    scoreEl.textContent=score; // 記録済みスコアは変更しない
+    await sleepPausable(450);
+  }
+
+  msgEl.textContent = demoFullyClearable
+    ? t('demoDonePerfect')
+    : t('demoDonePartial');
+
+  // ストップ/さいせいを隠して、もう一度見るボタンを出す
+  demoStopBtn.style.display='none';
+  demoPlayBtn.style.display='none';
+  demoReplayBtn.style.display='inline-block';
+}
+
+async function replayDemo(){
+  grid=cloneGrid(demoStartGrid);
+  render();
+  await playDemoSequence();
+}
+
+
+
+function startGame(diff){
+  difficulty=diff;
+  const d=DIFFICULTIES[diff];
+  ROWS=d.rows; COLS=d.cols; COLORS=d.colors;
+  diffLabelEl.textContent=diffSummary(diff);
+  grid=makeGrid();
+  initialGrid=cloneGrid(grid);
+  score=0;
+  roundOver=false;
+  busy=false;
+  hintPenaltyPending=false;
+  firstMoveDone=false;
+  undoSnapshot=null;
+  updateGiveupButton();
+  hintBtn.disabled=false;
+  undoBtn.disabled=true;
+  undoBtn.style.display='block';
+  document.getElementById('actionRow').classList.remove('no-undo');
+  demoControls.style.display='none'; // 前のお手本再生ボタンが残ってしまうのを防ぐ
+  document.getElementById('timeLabel').textContent = d.isInfinite ? t('timeLabelRemaining') : t('timeLabelElapsed');
+  msgEl.textContent = d.firstTapBottomRow ? t('msgBottomFirst') : t('msgDefault');
+  render();
+  if(d.isInfinite){
+    startCountdown(d.targetTime, onInfiniteTimeUp);
+  }else{
+    startTimer();
+  }
+  hideDiffPopup();
+}
+
+async function onInfiniteTimeUp(){
+  if(roundOver) return;
+  roundOver=true;
+  updateGiveupButton();
+  hintBtn.disabled=true;
+  const d=DIFFICULTIES[difficulty];
+  const finalScore=score;
+  msgEl.textContent=t('msgTimeUp',{score:finalScore});
+  const isNewHighScore = await recordRound(finalScore,d.targetTime);
+  if(isRankingOptedIn() && finalScore>0){
+    supabaseInsertScore(getNickname(),difficulty,finalScore,d.targetTime);
+  }
+  showResultPopup(t('resultTitleTimeUp'),finalScore,d.targetTime,finalScore,0,false,0,isNewHighScore);
+}
+
+// むげんモードで、補充しても消せる場所が無くなった時点で終了する
+async function finishInfiniteStuck(){
+  if(roundOver) return;
+  roundOver=true;
+  updateGiveupButton();
+  hintBtn.disabled=true;
+  const elapsed=stopTimer(); // カウントダウンを止めて、その時点までの経過秒数を取得
+  const finalScore=score;
+  const prefix=t('resultTitleStuck');
+  msgEl.textContent=t('msgStuckOrGiveup',{prefix,score:finalScore});
+  const isNewHighScore = await recordRound(finalScore,elapsed);
+  if(isRankingOptedIn() && finalScore>0){
+    supabaseInsertScore(getNickname(),difficulty,finalScore,elapsed);
+  }
+  showResultPopup(prefix,finalScore,elapsed,finalScore,0,false,0,isNewHighScore);
+}
+
+function showDiffPopup(){
+  renderRankingSection();
+  document.getElementById('diffOverlay').classList.add('show');
+}
+function hideDiffPopup(){document.getElementById('diffOverlay').classList.remove('show');}
+
+// ---------- ランキング参加まわりのUI ----------
+function renderRankingSection(){
+  const el=document.getElementById('rankingSection');
+  if(isRankingOptedIn()){
+    const name=getNickname();
+    el.innerHTML=`
+      <div class="ranking-status">${t('rankingStatus',{name:escapeHtml(name)})}</div>
+      <div class="ranking-actions">
+        <button id="changeNicknameBtn" class="ranking-link-btn">${t('rankingChangeNickname')}</button>
+        <button id="leaveRankingBtn" class="ranking-link-btn">${t('rankingLeave')}</button>
+      </div>
+      <button id="manageGroupBtn" class="ranking-join-btn" style="margin-top:10px;">${t('groupBtn')}</button>`;
+    document.getElementById('changeNicknameBtn').addEventListener('click',()=>showNicknameModal(false));
+    document.getElementById('leaveRankingBtn').addEventListener('click',()=>{
+      if(confirm(t('rankingLeaveConfirm'))){
+        setRankingOptedIn(false);
+        renderRankingSection();
+      }
+    });
+    document.getElementById('manageGroupBtn').addEventListener('click',showGroupOverlay);
+  }else{
+    el.innerHTML=`<button id="joinRankingBtn" class="ranking-join-btn">${t('rankingJoin')}</button>`;
+    document.getElementById('joinRankingBtn').addEventListener('click',()=>showNicknameModal(true));
+  }
+}
+
+let selectedAgeGroup=''; // ''=答えない/未選択
+function setActiveAgeButton(age){
+  selectedAgeGroup=age;
+  document.querySelectorAll('#ageGroupRow .age-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.age===age);
+  });
+}
+document.getElementById('ageGroupRow').addEventListener('click',(e)=>{
+  const btn=e.target.closest('.age-btn');
+  if(!btn) return;
+  setActiveAgeButton(btn.dataset.age);
+});
+
+const GROUP_TUTORIAL_SEEN_KEY='puzzle-group-tutorial-seen';
+function showGroupTutorial(){
+  document.getElementById('groupTutorialOverlay').classList.add('show');
+}
+function hideGroupTutorial(){
+  document.getElementById('groupTutorialOverlay').classList.remove('show');
+  try{ localStorage.setItem(GROUP_TUTORIAL_SEEN_KEY,'1'); }catch(e){}
+}
+document.getElementById('openGroupTutorialBtn').addEventListener('click',showGroupTutorial);
+document.getElementById('groupTutorialCloseBtn').addEventListener('click',hideGroupTutorial);
+
+// ---------- アンケート・ご意見 ----------
+let feedbackRating=0;
+function setFeedbackStars(n){
+  feedbackRating=n;
+  document.querySelectorAll('#feedbackStarRow .star-btn').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.star,10)<=n);
+  });
+}
+document.getElementById('feedbackStarRow').addEventListener('click',(e)=>{
+  const btn=e.target.closest('.star-btn');
+  if(!btn) return;
+  setFeedbackStars(parseInt(btn.dataset.star,10));
+});
+function showFeedbackOverlay(){
+  setFeedbackStars(0);
+  document.getElementById('feedbackDifficulty').value='';
+  document.getElementById('feedbackFeature').value='';
+  document.getElementById('feedbackUsability').value='';
+  document.getElementById('feedbackBug').value='';
+  document.getElementById('feedbackOverlay').classList.add('show');
+}
+function hideFeedbackOverlay(){
+  document.getElementById('feedbackOverlay').classList.remove('show');
+}
+document.getElementById('openFeedbackBtn').addEventListener('click',showFeedbackOverlay);
+document.getElementById('feedbackCancelBtn').addEventListener('click',hideFeedbackOverlay);
+document.getElementById('feedbackSubmitBtn').addEventListener('click',async ()=>{
+  const difficulty_comment=document.getElementById('feedbackDifficulty').value.trim();
+  const feature_request=document.getElementById('feedbackFeature').value.trim();
+  const usability_comment=document.getElementById('feedbackUsability').value.trim();
+  const bug_report=document.getElementById('feedbackBug').value.trim();
+  if(!feedbackRating && !difficulty_comment && !feature_request && !usability_comment && !bug_report){
+    alert('何か1つは入力してね');
+    return;
+  }
+  try{
+    await fetchWithTimeout(`${SUPABASE_URL}feedback`,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({
+        user_id:getUserId(),
+        nickname:getNickname()||null,
+        overall_rating:feedbackRating||null,
+        difficulty_comment:difficulty_comment||null,
+        feature_request:feature_request||null,
+        usability_comment:usability_comment||null,
+        bug_report:bug_report||null
+      })
+    },6000);
+    alert('送信したよ、ありがとう!');
+    hideFeedbackOverlay();
+  }catch(e){
+    console.error('アンケート送信に失敗しました',e);
+    alert('送信に失敗しちゃった。もう一度試してみてね');
+  }
+});
+
+async function showNicknameModal(isJoinFlow){
+  document.getElementById('nicknameInput').value=getNickname();
+  document.getElementById('nicknameOverlay').dataset.joinFlow=isJoinFlow?'1':'0';
+  document.getElementById('friendCodeInput').value=getFriendCode();
+  setActiveAgeButton(getAgeGroup());
+  document.getElementById('nicknameOverlay').classList.add('show');
+  let groupTutorialSeen=null;
+  try{ groupTutorialSeen=localStorage.getItem(GROUP_TUTORIAL_SEEN_KEY); }catch(e){}
+  if(!groupTutorialSeen){ showGroupTutorial(); }
+  // 既にランキング参加中なら、最新のプロフィール(合言葉・年代)を取得して埋める
+  if(isRankingOptedIn()){
+    const p=await ensureProfile();
+    if(p){
+      document.getElementById('friendCodeInput').value=p.friend_code||getFriendCode();
+      setActiveAgeButton(p.age_group||'');
+    }
+  }
+}
+function hideNicknameModal(){
+  document.getElementById('nicknameOverlay').classList.remove('show');
+}
+document.getElementById('nicknameConfirmBtn').addEventListener('click',async ()=>{
+  const val=document.getElementById('nicknameInput').value.trim();
+  if(!val){ alert(t('nicknameEmptyAlert')); return; }
+  if(containsInappropriateWord(val)){ alert(t('nicknameInappropriateAlert')); return; }
+
+  let code=document.getElementById('friendCodeInput').value.trim().toUpperCase();
+  if(!code) code=generateFriendCode();
+  if(!/^[A-Za-z0-9ぁ-んーァ-ヶ一-龯]{2,10}$/.test(code)){ alert(t('friendCodeInvalidAlert')); return; }
+  if(containsInappropriateWord(code)){ alert(t('nicknameInappropriateAlert')); return; }
+  if(code!==getFriendCode()){
+    const taken=await isFriendCodeTaken(code);
+    if(taken){ alert(t('friendCodeTakenAlert')); return; }
+  }
+
+  setNickname(val.slice(0,10));
+  setRankingOptedIn(true);
+  setFriendCode(code);
+  setAgeGroup(selectedAgeGroup);
+  await upsertProfile({nickname:val.slice(0,10),friend_code:code,age_group:selectedAgeGroup||null,updated_at:new Date().toISOString()});
+  hideNicknameModal();
+  renderRankingSection();
+
+  if(pendingJoinCode){
+    await attemptJoinByCode(pendingJoinCode);
+    pendingJoinCode=null;
+  }
+  if(nicknameModalIsStartupFlow){
+    // 招待リンク経由の起動だったので、ここで通常の起動の流れ(チュートリアル or 難易度選択)を続ける
+    nicknameModalIsStartupFlow=false;
+    let seen=null;
+    try{ seen=localStorage.getItem(TUTORIAL_SEEN_KEY); }catch(e){}
+    if(!seen){
+      pendingFirstLaunch=true;
+      showTutorial();
+    }else{
+      showDiffPopup();
+    }
+  }
+});
+document.getElementById('nicknameCancelBtn').addEventListener('click',()=>{
+  hideNicknameModal();
+  if(nicknameModalIsStartupFlow){
+    nicknameModalIsStartupFlow=false;
+    pendingJoinCode=null;
+    let seen=null;
+    try{ seen=localStorage.getItem(TUTORIAL_SEEN_KEY); }catch(e){}
+    if(!seen){
+      pendingFirstLaunch=true;
+      showTutorial();
+    }else{
+      showDiffPopup();
+    }
+  }
+});
+
+// ---------- グループ管理画面 ----------
+async function showGroupOverlay(){
+  document.getElementById('groupOverlay').classList.add('show');
+  await renderGroupOverlay();
+}
+function hideGroupOverlay(){
+  document.getElementById('groupOverlay').classList.remove('show');
+}
+document.getElementById('groupOverlayClose').addEventListener('click',hideGroupOverlay);
+document.getElementById('groupOverlayCloseBottom').addEventListener('click',hideGroupOverlay);
+
+async function renderGroupOverlay(){
+  document.getElementById('myFriendCodeText').textContent=getFriendCode()||'------';
+  const listEl=document.getElementById('groupList');
+  listEl.innerHTML=`<div style="text-align:center;color:var(--ink-soft);">${t('rankingLoading')}</div>`;
+  const groups=await fetchMyGroups();
+  if(!groups.length){
+    listEl.innerHTML='';
+  }else{
+    const cards=await Promise.all(groups.map(async g=>{
+      const members=await fetchGroupMemberIds(g.id);
+      return `
+        <div class="group-card">
+          <div class="g-name">${escapeHtml(g.name)}</div>
+          <div class="g-meta">${t('groupInviteCodeLabel')} <b>${escapeHtml(g.invite_code)}</b> ・ ${t('groupMembersCount',{count:members.size})}</div>
+          <div class="g-btn-row">
+            <button class="g-share" data-gname="${escapeHtml(g.name)}" data-gcode="${escapeHtml(g.invite_code)}">🔗 ${t('groupShareBtn')}</button>
+            <button class="g-leave" data-gid="${g.id}">${t('groupLeaveBtn')}</button>
+          </div>
+        </div>`;
+    }));
+    listEl.innerHTML=cards.join('');
+    listEl.querySelectorAll('.g-leave').forEach(btn=>{
+      btn.addEventListener('click',()=>leaveGroup(btn.dataset.gid));
+    });
+    listEl.querySelectorAll('.g-share').forEach(btn=>{
+      btn.addEventListener('click',()=>shareGroupInvite(btn.dataset.gname,btn.dataset.gcode));
+    });
+  }
+  // 「合言葉で誘う」の対象グループ選択肢を更新
+  const sel=document.getElementById('inviteTargetGroupSelect');
+  sel.innerHTML=groups.map(g=>`<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('');
+}
+
+document.getElementById('createGroupBtn').addEventListener('click',async ()=>{
+  const nameInput=document.getElementById('newGroupNameInput');
+  const name=nameInput.value.trim();
+  if(!name){ alert(t('groupNameEmptyAlert')); return; }
+  if(containsInappropriateWord(name)){ alert(t('nicknameInappropriateAlert')); return; }
+  const myGroups=await fetchMyGroups();
+  if(myGroups.length>=MAX_GROUPS){ alert(t('groupLimitAlert')); return; }
+  try{
+    const code=generateInviteCode();
+    const res=await fetchWithTimeout(`${SUPABASE_URL}groups`,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'},
+      body:JSON.stringify({name:name.slice(0,12),invite_code:code,created_by:getUserId()})
+    },6000);
+    if(!res.ok) throw new Error('create group failed');
+    const rows=await res.json();
+    const group=rows[0];
+    await fetchWithTimeout(`${SUPABASE_URL}group_members`,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({group_id:group.id,user_id:getUserId(),nickname:getNickname()})
+    },6000);
+    nameInput.value='';
+    await renderGroupOverlay();
+  }catch(e){ console.error('グループ作成に失敗しました',e); alert(t('groupErrorAlert')); }
+});
+
+document.getElementById('joinGroupBtn').addEventListener('click',async ()=>{
+  const codeInput=document.getElementById('joinGroupCodeInput');
+  const code=codeInput.value.trim().toUpperCase();
+  if(!code) return;
+  const myGroups=await fetchMyGroups();
+  if(myGroups.length>=MAX_GROUPS){ alert(t('groupLimitAlert')); return; }
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}groups?invite_code=eq.${encodeURIComponent(code)}&select=id,name`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) throw new Error('lookup failed');
+    const rows=await res.json();
+    if(!rows.length){ alert(t('groupNotFoundAlert')); return; }
+    const group=rows[0];
+    if(myGroups.some(g=>g.id===group.id)){ alert(t('groupAlreadyJoinedAlert')); return; }
+    await fetchWithTimeout(`${SUPABASE_URL}group_members`,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({group_id:group.id,user_id:getUserId(),nickname:getNickname()})
+    },6000);
+    codeInput.value='';
+    await renderGroupOverlay();
+  }catch(e){ console.error('グループ参加に失敗しました',e); alert(t('groupErrorAlert')); }
+});
+
+document.getElementById('inviteByFriendCodeBtn').addEventListener('click',async ()=>{
+  const targetGroupId=document.getElementById('inviteTargetGroupSelect').value;
+  const codeInput=document.getElementById('inviteFriendCodeInput');
+  const code=codeInput.value.trim().toUpperCase();
+  if(!targetGroupId || !code) return;
+  try{
+    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?friend_code=eq.${encodeURIComponent(code)}&select=user_id,nickname`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) throw new Error('lookup failed');
+    const rows=await res.json();
+    if(!rows.length){ alert(t('friendCodeNotFoundAlert')); return; }
+    const target=rows[0];
+    if(target.user_id===getUserId()){ alert(t('friendCodeSelfAlert')); return; }
+    const targetGroupsRes=await fetchWithTimeout(`${SUPABASE_URL}group_members?user_id=eq.${target.user_id}&select=group_id`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    const targetGroups=targetGroupsRes.ok ? await targetGroupsRes.json() : [];
+    if(targetGroups.some(g=>g.group_id===targetGroupId)){ alert(t('groupAlreadyJoinedAlert')); return; }
+    if(targetGroups.length>=MAX_GROUPS){ alert(t('targetGroupFullAlert')); return; }
+    await fetchWithTimeout(`${SUPABASE_URL}group_members`,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({group_id:targetGroupId,user_id:target.user_id,nickname:target.nickname})
+    },6000);
+    codeInput.value='';
+    alert(t('inviteSuccessAlert',{name:target.nickname}));
+    await renderGroupOverlay();
+  }catch(e){ console.error('招待に失敗しました',e); alert(t('groupErrorAlert')); }
+});
+
+async function leaveGroup(groupId){
+  if(!confirm(t('groupLeaveConfirm'))) return;
+  try{
+    await fetchWithTimeout(`${SUPABASE_URL}group_members?group_id=eq.${groupId}&user_id=eq.${getUserId()}`,{
+      method:'DELETE',
+      headers:{'apikey':SUPABASE_KEY}
+    },6000);
+    await renderGroupOverlay();
+  }catch(e){ console.error('グループ脱退に失敗しました',e); alert(t('groupErrorAlert')); }
+}
+
+// 招待リンクを作って共有する
+async function shareGroupInvite(name,code){
+  const url=location.origin+location.pathname+'?join='+encodeURIComponent(code);
+  const text=t('shareGroupInviteText',{name});
+  if(navigator.share){
+    try{ await navigator.share({title:t('appTitle'),text,url}); }catch(e){ /* キャンセル時は何もしない */ }
+    return;
+  }
+  const fullText=`${text}\n${url}`;
+  try{
+    await navigator.clipboard.writeText(fullText);
+    alert(t('shareGroupCopiedAlert'));
+  }catch(e){
+    prompt(t('sharePromptText'),fullText);
+  }
+}
+
+// 招待コードでグループに参加する(招待リンクから来た場合に使う。手入力の参加ボタンとは別処理)
+async function attemptJoinByCode(code){
+  if(!code) return;
+  try{
+    const myGroups=await fetchMyGroups();
+    if(myGroups.some(g=>g.invite_code===code)) return; // 既に参加済み
+    if(myGroups.length>=MAX_GROUPS){ alert(t('groupLimitAlert')); return; }
+    const res=await fetchWithTimeout(`${SUPABASE_URL}groups?invite_code=eq.${encodeURIComponent(code)}&select=id,name`,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return;
+    const rows=await res.json();
+    if(!rows.length) return;
+    const group=rows[0];
+    await fetchWithTimeout(`${SUPABASE_URL}group_members`,{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({group_id:group.id,user_id:getUserId(),nickname:getNickname()})
+    },6000);
+    alert(t('groupJoinedViaLinkAlert',{name:group.name}));
+  }catch(e){ console.error('招待リンクからの参加に失敗しました',e); }
+}
+
+// ---------- 今日のランキング表示 ----------
+let rankingMateIds=new Set();
+let rankingFullList=[];
+
+async function showTodayRanking(){
+  const d=DIFFICULTIES[difficulty];
+  const listEl=document.getElementById('rankingViewList');
+  document.getElementById('rankingViewTitle').textContent = d ? t('rankingViewToday',{label:diffName(difficulty)}) : t('rankingViewGeneric');
+  listEl.innerHTML=`<div style="text-align:center;color:var(--ink-soft);">${t('rankingLoading')}</div>`;
+  document.getElementById('rankingViewOverlay').classList.add('show');
+  try{
+    rankingFullList=await supabaseFetchFullBoard(dateKey(new Date()),difficulty);
+    rankingMateIds = isRankingOptedIn() ? await fetchAllMyGroupMateIds() : new Set();
+    await renderCategorySelect();
+    await renderRankingForCategory(document.getElementById('rankingCategorySelect').value);
+  }catch(e){
+    console.error('ランキング表示でエラーが発生しました',e);
+    listEl.innerHTML=`<div style="text-align:center;color:var(--ink-soft);">${t('rankingLoadError')}</div>`;
+  }
+}
+
+async function renderCategorySelect(){
+  const sel=document.getElementById('rankingCategorySelect');
+  const options=[`<option value="national">${t('categoryNational')}</option>`];
+  options.push(`<option value="age:senior">${t('ageSenior')}</option>`);
+  options.push(`<option value="age:adult">${t('ageAdult')}</option>`);
+  options.push(`<option value="age:youth">${t('ageYouth')}</option>`);
+  if(isRankingOptedIn()){
+    const groups=await fetchMyGroups();
+    groups.forEach(g=>{
+      options.push(`<option value="group:${g.id}">${t('categoryGroupPrefix')}${escapeHtml(g.name)}</option>`);
+    });
+  }
+  sel.innerHTML=options.join('');
+  sel.onchange=()=>renderRankingForCategory(sel.value);
+}
+
+async function renderRankingForCategory(category){
+  const listEl=document.getElementById('rankingViewList');
+  listEl.innerHTML=`<div style="text-align:center;color:var(--ink-soft);">${t('rankingLoading')}</div>`;
+
+  let rows=rankingFullList;
+  if(category && category!=='national'){
+    let idSet=new Set();
+    if(category.startsWith('age:')){
+      idSet=await fetchUserIdsByAgeGroup(category.slice(4));
+    }else if(category.startsWith('group:')){
+      idSet=await fetchGroupMemberIds(category.slice(6));
+    }
+    rows=rankingFullList.filter(r=>r.user_id && idSet.has(r.user_id));
+  }
+
+  if(!rows.length){
+    listEl.innerHTML=`<div style="text-align:center;color:var(--ink-soft);">${t('rankingNoData')}</div>`;
+    return;
+  }
+  const topRows=rows.slice(0,7);
+  const rowHtml=(r,rank)=>{
+    const isYou=r.user_id && r.user_id===getUserId();
+    const isMate=!isYou && r.user_id && rankingMateIds.has(r.user_id);
+    return `
+    <div class="ranking-row${isYou?' ranking-row-you':(isMate?' ranking-row-mate':'')}">
+      <span class="ranking-rank">${rank}${t('positionSuffix')}</span>
+      <span class="ranking-name">${escapeHtml(r.nickname)}${isYou?` <span class="you-badge">${t('youBadge')}</span>`:''}${isMate?` <span class="mate-badge">${t('mateBadge')}</span>`:''}</span>
+      <span class="ranking-score">${r.score}${t('pointsSuffix')}</span>
+    </div>`;
+  };
+  let html=topRows.map((r,i)=>rowHtml(r,i+1)).join('');
+
+  const myIndex=rows.findIndex(r=>r.user_id && r.user_id===getUserId());
+  if(myIndex>=7){
+    html+='<div class="ranking-sep">┈┈┈┈┈┈┈┈┈┈┈┈┈┈</div>';
+    html+=rowHtml(rows[myIndex],myIndex+1);
+  }
+  listEl.innerHTML=html;
+}
+document.getElementById('resultRankingBtn').addEventListener('click',showTodayRanking);
+document.getElementById('rankingViewClose').addEventListener('click',()=>{
+  document.getElementById('rankingViewOverlay').classList.remove('show');
+});
+
+// ---------- あそびかた(チュートリアル) ----------
+const TUTORIAL_SEEN_KEY='puzzle-tutorial-seen';
+let pendingFirstLaunch=false;
+let pendingJoinCode=null; // 招待リンクから来た場合の、参加待ちの招待コード
+let nicknameModalIsStartupFlow=false; // 起動時に(招待リンク経由で)ニックネーム登録を先に出したかどうか
+const tutorialOverlay=document.getElementById('tutorialOverlay');
+function showTutorial(){ tutorialOverlay.classList.add('show'); }
+function hideTutorial(){ tutorialOverlay.classList.remove('show'); }
+document.getElementById('openTutorial').addEventListener('click',showTutorial);
+document.getElementById('openTutorialFromDiff').addEventListener('click',showTutorial);
+document.getElementById('tutorialCloseBtn').addEventListener('click',()=>{
+  hideTutorial();
+  if(pendingFirstLaunch){
+    try{ localStorage.setItem(TUTORIAL_SEEN_KEY,'1'); }catch(e){}
+    pendingFirstLaunch=false;
+    showDiffPopup();
+  }
+});
+
+document.getElementById('diffOverlay').addEventListener('click',(e)=>{
+  const btn=e.target.closest('.diff-choice');
+  if(!btn) return;
+  startGame(btn.dataset.d);
+});
+giveupBtn.addEventListener('click',onGiveupBtnClick);
+hintBtn.addEventListener('click',showHint);
+document.getElementById('resultDemoBtn').addEventListener('click',autoSolveDemo);
+document.getElementById('resultNewGameBtn').addEventListener('click',()=>{
+  hideResultPopup();
+  showDiffPopup();
+});
+document.getElementById('resultCloseBtn').addEventListener('click',hideResultPopup);
+
+// ---------- calendar ----------
+const calOverlay=document.getElementById('calOverlay');
+const calTitle=document.getElementById('calTitle');
+const calDays=document.getElementById('calDays');
+const calDow=document.getElementById('calDow');
+const calEmptyNote=document.getElementById('calEmptyNote');
+const dayDetail=document.getElementById('dayDetail');
+
+function renderCalendar(){
+  const now=new Date();
+  const base=new Date(now.getFullYear(),now.getMonth()+calMonthOffset,1);
+  const y=base.getFullYear(), m=base.getMonth();
+  calTitle.textContent = lang==='en'
+    ? base.toLocaleDateString('en-US',{year:'numeric',month:'long'})
+    : `${y}年${m+1}月`;
+  dayDetail.style.display='none';
+
+  calDow.innerHTML='';
+  CAL_DOW[lang].forEach(dw=>{
+    const el=document.createElement('div');
+    el.className='cal-dow'; el.textContent=dw;
+    calDow.appendChild(el);
+  });
+
+  calDays.innerHTML='';
+  const firstDow=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const todayKey=dateKey(new Date());
+
+  let anyRecord=false;
+  for(const k in records) if(k.startsWith(`${y}-${pad(m+1)}`)) anyRecord=true;
+  calEmptyNote.style.display = anyRecord? 'none':'block';
+
+  for(let i=0;i<firstDow;i++){
+    const blank=document.createElement('div');
+    blank.className='cal-day blank';
+    calDays.appendChild(blank);
+  }
+  for(let day=1;day<=daysInMonth;day++){
+    const key=`${y}-${pad(m+1)}-${pad(day)}`;
+    const el=document.createElement('div');
+    el.className='cal-day'+(key===todayKey?' today':'');
+    el.dataset.key=key;
+    const num=document.createElement('div');
+    num.textContent=day;
+    el.appendChild(num);
+    const rec=records[key];
+    if(rec){
+      const dots=document.createElement('div');
+      dots.className='dots';
+      Object.keys(rec).forEach(diff=>{
+        const dot=document.createElement('div');
+        dot.className='dot';
+        dot.style.background=DIFFICULTIES[diff]?DIFFICULTIES[diff].color:'#ccc';
+        dots.appendChild(dot);
+      });
+      el.appendChild(dots);
+      el.style.cursor='pointer';
+      el.addEventListener('click',()=>showDayDetail(key));
+    }
+    calDays.appendChild(el);
+  }
+
+  // 自分の記録が無い日でも、他の人が遊んだ日ならマークする(Supabase)
+  fetchAndMarkSharedDays(y,m,daysInMonth);
+}
+
+// その月の中で、誰かしらスコアを送ってる日を調べて、まだ印の無い日にうっすら印をつける
+async function fetchAndMarkSharedDays(y,m,daysInMonth){
+  const startDate=`${y}-${pad(m+1)}-01`;
+  const endDate=`${y}-${pad(m+1)}-${pad(daysInMonth)}`;
+  try{
+    const url=`${SUPABASE_URL}scores?play_date=gte.${startDate}&play_date=lte.${endDate}&select=play_date`;
+    const res=await fetchWithTimeout(url,{headers:{'apikey':SUPABASE_KEY}},6000);
+    if(!res.ok) return;
+    const rows=await res.json();
+    const activeDates=new Set(rows.map(r=>r.play_date));
+    activeDates.forEach(dateStr=>{
+      if(records[dateStr]) return; // 自分の記録がある日はもう印がついてる
+      const cell=calDays.querySelector(`.cal-day[data-key="${dateStr}"]`);
+      if(!cell || cell.classList.contains('blank')) return;
+      const dots=document.createElement('div');
+      dots.className='dots';
+      const dot=document.createElement('div');
+      dot.className='dot dot-shared';
+      dots.appendChild(dot);
+      cell.appendChild(dots);
+      cell.style.cursor='pointer';
+      cell.addEventListener('click',()=>showDayDetail(dateStr));
+    });
+  }catch(e){
+    console.error('その月のみんなの記録取得でエラーが発生しました',e);
+  }
+}
+
+async function showDayDetail(key){
+  const rec=records[key]||{};
+  dayDetail.innerHTML=`<div style="text-align:center;color:var(--ink-soft);">${t('rankingLoading')}</div>`;
+  dayDetail.style.display='block';
+
+  // 難易度ごとに、みんなのトップ3をまとめて取得しておく
+  const diffKeys=Object.keys(DIFFICULTIES);
+  const sharedPairs=await Promise.all(diffKeys.map(async diff=>[diff, await supabaseFetchTop(key,diff,3)]));
+  const sharedMap=Object.fromEntries(sharedPairs);
+
+  const availableDiffs=diffKeys.filter(diff=> rec[diff] || (sharedMap[diff] && sharedMap[diff].length));
+  if(!availableDiffs.length){
+    dayDetail.innerHTML=`<b>${key}</b><br><span style="color:var(--ink-soft);">${t('dayNoDataAtAll')}</span>`;
+    return;
+  }
+
+  let html=`<div class="day-date">${key}</div>`;
+  html+=`<div class="day-diff-tabs" id="dayDiffTabs">`+
+    availableDiffs.map((diff,i)=>`<button type="button" class="day-diff-tab${i===0?' active':''}" data-diff="${diff}">${diffName(diff)}</button>`).join('')+
+    `</div>`;
+  html+=`<div id="dayDiffContent"></div>`;
+  dayDetail.innerHTML=html;
+
+  function renderDiffContent(diff){
+    const r=rec[diff];
+    const rows=sharedMap[diff]||[];
+    let inner='';
+    if(r){
+      inner+=`<div class="day-mine-card">
+        <div class="day-mine-label">${t('dayMineLabel')}</div>
+        <div class="day-mine-score">${r.bestScore}<span class="day-mine-unit">${t('pointsSuffix')}</span></div>
+        <div class="day-mine-meta">${t('dayMineMeta',{time:fmtTime(r.bestTime),plays:r.plays})}</div>
+      </div>`;
+    }
+    if(rows.length){
+      inner+=`<div class="day-top-label">${t('dayTopLabel')}</div>`;
+      inner+=rows.map((row,i)=>{
+        const isYou=row.user_id && row.user_id===getUserId();
+        return `<div class="ranking-row${isYou?' ranking-row-you':''}">
+          <span class="ranking-rank">${i+1}${t('positionSuffix')}</span>
+          <span class="ranking-name">${escapeHtml(row.nickname)}${isYou?` <span class="you-badge">${t('youBadge')}</span>`:''}</span>
+          <span class="ranking-score">${row.score}${t('pointsSuffix')}</span>
+        </div>`;
+      }).join('');
+    }
+    if(!inner) inner=`<div style="text-align:center;color:var(--ink-soft);">${t('dayNothingHere')}</div>`;
+    document.getElementById('dayDiffContent').innerHTML=inner;
+  }
+  renderDiffContent(availableDiffs[0]);
+  document.getElementById('dayDiffTabs').addEventListener('click',(e)=>{
+    const btn=e.target.closest('.day-diff-tab');
+    if(!btn) return;
+    document.querySelectorAll('#dayDiffTabs .day-diff-tab').forEach(b=>b.classList.toggle('active',b===btn));
+    renderDiffContent(btn.dataset.diff);
+  });
+}
+
+function openCalendar(){
+  calMonthOffset=0;
+  renderCalendar();
+  calOverlay.classList.add('show');
+  // 自分の記録が無くても、今日はとりあえず開いて、みんなの記録があれば自動で出す
+  showDayDetail(dateKey(new Date()));
+}
+document.getElementById('openCal').addEventListener('click',openCalendar);
+document.getElementById('openCalFromDiff').addEventListener('click',openCalendar);
+document.getElementById('openCalFromResult').addEventListener('click',openCalendar);
+document.getElementById('closeCal').addEventListener('click',()=>calOverlay.classList.remove('show'));
+document.getElementById('prevMonth').addEventListener('click',()=>{calMonthOffset--;renderCalendar();});
+document.getElementById('nextMonth').addEventListener('click',()=>{calMonthOffset++;renderCalendar();});
+
+// ---------- 言語切り替えの反映 ----------
+function applyLanguage(){
+  document.documentElement.lang=lang;
+  document.title=t('appTitle');
+  document.getElementById('appTitleText').textContent=t('appTitle');
+  document.getElementById('scoreLabelText').textContent=t('scoreLabel');
+  document.getElementById('diffTitleText').textContent=t('diffTitle');
+  document.getElementById('diffSubtitleText').textContent=t('diffSubtitle');
+  document.getElementById('langToggleBtn').textContent=t('langToggle');
+  document.getElementById('nicknameTitleText').textContent=t('nicknameTitle');
+  document.getElementById('nicknameSubtitleText').textContent=t('nicknameSubtitle');
+  document.getElementById('nicknameInput').placeholder=t('nicknamePlaceholder');
+  document.getElementById('nicknameConfirmBtn').textContent=t('nicknameConfirm');
+  document.getElementById('nicknameCancelBtn').textContent=t('nicknameCancel');
+  document.getElementById('tutorialTitleText').textContent=t('tutorialTitle');
+  document.getElementById('tutorial1Text').innerHTML=t('tutorial1');
+  document.getElementById('tutorial2Text').innerHTML=t('tutorial2');
+  document.getElementById('tutorial3Text').innerHTML=t('tutorial3');
+  document.getElementById('tutorial4Text').innerHTML=t('tutorial4');
+  document.getElementById('tutorialCloseBtn').textContent=t('tutorialClose');
+  document.getElementById('resultScoreLabelText').textContent=t('resultScoreLabel');
+  document.getElementById('resultTimeLabelText').textContent=t('resultTimeLabel');
+  document.getElementById('resultHighScore').textContent=t('resultHighScore');
+  document.getElementById('resultShareBtn').textContent=t('resultShareBtn');
+  document.getElementById('resultRankingBtn').textContent=t('resultRankingBtn');
+  document.getElementById('resultNewGameBtn').textContent=t('resultNewGameBtn');
+  document.getElementById('resultCloseBtn').textContent=t('resultCloseBtn');
+  document.getElementById('calEmptyNote').textContent=t('calEmptyNote');
+  document.getElementById('closeCal').textContent=t('calClose');
+  document.getElementById('demoStopBtn').textContent=t('demoStop');
+  document.getElementById('demoPlayBtn').textContent=t('demoPlay');
+  document.getElementById('demoReplayBtn').textContent=t('demoReplay');
+
+  Object.keys(DIFFICULTIES).forEach(key=>{
+    const btn=document.querySelector(`.diff-choice[data-d="${key}"]`);
+    if(!btn) return;
+    btn.querySelector('.name').textContent=diffName(key);
+    btn.querySelector('.desc').textContent=diffDesc(key);
+  });
+  const badge=document.querySelector('.diff-choice[data-d="easy"] .beginner-badge');
+  if(badge) badge.textContent=t('beginnerBadge');
+
+  document.getElementById('timeLabel').textContent =
+    (difficulty && DIFFICULTIES[difficulty] && DIFFICULTIES[difficulty].isInfinite) ? t('timeLabelRemaining') : t('timeLabelElapsed');
+
+  hintBtn.textContent=t('hintBtn');
+  undoBtn.textContent=t('undoBtn');
+  updateGiveupButton();
+  if(!difficulty){ msgEl.textContent=t('msgChooseDifficulty'); }
+  if(difficulty){ diffLabelEl.textContent=diffSummary(difficulty); }
+  renderRankingSection();
+  todayLabel();
+  if(calOverlay.classList.contains('show')) renderCalendar();
+}
+function toggleLanguage(){
+  lang = (lang==='ja') ? 'en' : 'ja';
+  try{ localStorage.setItem(LANG_KEY,lang); }catch(e){}
+  applyLanguage();
+}
+document.getElementById('langToggleBtn').addEventListener('click',toggleLanguage);
+
+// ---------- init ----------
+(async function init(){
+  document.getElementById('versionTag').textContent='v'+APP_VERSION;
+  await checkForUpdate(); // 古いバージョンならここでリロードされ、以降の処理は行われない
+  applyLanguage();
+  todayLabel();
+  await loadRecords();
+
+  // 招待リンク(?join=コード)経由で開かれたかどうかを確認
+  let joinCode=null;
+  try{ joinCode=new URLSearchParams(location.search).get('join'); }catch(e){}
+  if(joinCode){
+    joinCode=joinCode.toUpperCase();
+    try{ history.replaceState(null,'',location.pathname); }catch(e){} // リロードで再参加しないようURLを綺麗にする
+  }
+
+  if(joinCode && !isRankingOptedIn()){
+    // まだニックネームが無い人は、先にニックネーム登録してもらってから自動で参加させる
+    pendingJoinCode=joinCode;
+    nicknameModalIsStartupFlow=true;
+    showNicknameModal(true);
+    return;
+  }
+  if(joinCode && isRankingOptedIn()){
+    await ensureProfile();
+    await attemptJoinByCode(joinCode);
+  }
+
+  let seen=null;
+  try{ seen=localStorage.getItem(TUTORIAL_SEEN_KEY); }catch(e){}
+  if(!seen){
+    pendingFirstLaunch=true;
+    showTutorial();
+  }else{
+    showDiffPopup();
+  }
+})();
+</script>
+</body>
+</html>
