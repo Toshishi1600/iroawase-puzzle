@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="app-version" content="1.8.0">
+<meta name="app-version" content="1.8.2">
 <title>いろあわせパズル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -831,7 +831,7 @@ const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
 
 // ---------- みんなのランキング(Supabase) ----------
 // ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
-const APP_VERSION='1.8.0';
+const APP_VERSION='1.8.2';
 
 const SUPABASE_URL='https://jhrwpwpzxgxlvbartvqr.supabase.co/rest/v1/';
 const SUPABASE_KEY='sb_publishable_AaiMwnPXCL0oCfvQRqi9wA_x3Bl33da';
@@ -2165,6 +2165,7 @@ document.getElementById('nicknameCancelBtn').addEventListener('click',()=>{
 // ---------- グループ管理画面 ----------
 async function showGroupOverlay(){
   document.getElementById('groupOverlay').classList.add('show');
+  await ensureProfile(); // 本人確認用IDの紐付け(まだなら)を先に済ませておく
   await renderGroupOverlay();
 }
 function hideGroupOverlay(){
@@ -2286,6 +2287,7 @@ document.getElementById('inviteByFriendCodeBtn').addEventListener('click',async 
 async function leaveGroup(groupId){
   if(!confirm(t('groupLeaveConfirm'))) return;
   try{
+    await ensureProfile(); // 脱退の直前にも、念のため本人確認用IDの紐付けを確認しておく
     await fetchWithTimeout(`${SUPABASE_URL}group_members?group_id=eq.${groupId}&user_id=eq.${getUserId()}`,{
       method:'DELETE',
       headers:await authHeaders()
