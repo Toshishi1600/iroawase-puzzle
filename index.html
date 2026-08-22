@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="app-version" content="1.9.5">
+<meta name="app-version" content="1.11.0">
 <title>いろあわせパズル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -84,6 +84,10 @@
   .cell.locked::after{
     content:'';position:absolute;inset:0;border-radius:12px;
     background:rgba(59,50,42,.55);
+  }
+  .cell.fogged{
+    background:repeating-linear-gradient(135deg,#B9B0A2,#B9B0A2 8px,#A69C8C 8px,#A69C8C 16px);
+    color:rgba(255,255,255,.85);
   }
   .cell:active{transform:scale(.92);}
   .cell.pop{animation:pop .22s ease forwards;}
@@ -569,6 +573,8 @@
       <p id="tutorial2Text">🔴 <b>ふつう・むずかしい</b>では、さいしょの1回だけ<b>一番下の行</b>をタップしてね</p>
       <p id="tutorial3Text">💡 こまったら「ヒント」ボタンを押すと、消せるところを教えてくれるよ(次に消すスコアは半分になるよ)</p>
       <p id="tutorial4Text">↩️ 「1手戻る」を押すと直前の1手をやり直せるけど、少しスコアが減るよ</p>
+      <p id="tutorial5Text">🌫️ <b>むずかしい</b>では、一部のマスが霧で見えない状態でスタートするよ。最初の1手を消せた瞬間に、霧は全部晴れるよ</p>
+      <p id="tutorial6Text">🎨 <b>むずかしい</b>では、直前に消した色と同じ色は続けて消せないよ。1手ごとに違う色を選んでね</p>
     </div>
     <button class="newgame" id="tutorialCloseBtn" style="width:100%;">わかった!あそぶ</button>
   </div>
@@ -630,6 +636,7 @@ const I18N={
     msgDefault:'同じ色を3つ以上つなげてタップしてね',
     msgChooseDifficulty:'難易度を選んでゲームを始めてね',
     msgBottomFirst:'さいしょは、一番下の行をタップしてね',
+    msgSameColorBlocked:'直前と同じ色は、続けて消せないよ',
     msgNoMoves:'もう消せる場所がないみたい。ギブアップしてもいいよ',
     msgNoBottomMoves:'一番下の行に消せるところが見当たらないみたい',
     msgTapHighlighted:'光っているところをタップしてみてね(次に消すスコアは半分になるよ)',
@@ -647,7 +654,7 @@ const I18N={
     diffTitle:'難易度をえらんでね', diffSubtitle:'あとから下のボタンでも選べます',
     diff_easy_name:'かんたん', diff_easy_desc:'{colors}色・{rows}×{cols}マス',
     diff_normal_name:'ふつう', diff_normal_desc:'{colors}色・{rows}×{cols}マス・最初は一番下の行から',
-    diff_hard_name:'むずかしい', diff_hard_desc:'{colors}色・{rows}×{cols}マス・最初は一番下の行から',
+    diff_hard_name:'むずかしい', diff_hard_desc:'{colors}色・{rows}×{cols}マス・最初は一番下の行から・一部は霧で見えない・同色連続禁止',
     diff_infinite_name:'♾️ むげん', diff_infinite_desc:'30秒間で何個消せるかチャレンジ・上から無限に降ってくる',
     diff_hard_daily_name:'🗓️ むずかしい・デイリー', diff_hard_daily_desc:'7色・8×9マス・今日はみんな同じ盤面!',
     diff_infinite_daily_name:'🗓️ むげん・デイリー', diff_infinite_daily_desc:'30秒チャレンジ・スタートの盤面は今日はみんな同じ!',
@@ -844,9 +851,9 @@ const CAL_DOW={ja:['日','月','火','水','木','金','土'],en:['S','M','T','W
 const DIFFICULTIES={
   easy:  {label:'かんたん', colors:5, rows:6, cols:6, color:'var(--c1)', scoreMult:0.7, delayedMerges:0, firstTapBottomRow:false, targetTime:60,  timeBonusPerSec:2, maxStartGroupSize:null, perfectBonus:200, undoPenalty:30},
   normal:{label:'ふつう',   colors:7, rows:6, cols:6, color:'var(--c2)', scoreMult:1,   delayedMerges:1, firstTapBottomRow:true,  targetTime:90,  timeBonusPerSec:4, maxStartGroupSize:9,   perfectBonus:400, undoPenalty:50},
-  hard:  {label:'むずかしい',colors:7, rows:9, cols:8, color:'var(--c5)', scoreMult:1.4, delayedMerges:3, firstTapBottomRow:true,  targetTime:150, timeBonusPerSec:8, maxStartGroupSize:9,   perfectBonus:800, undoPenalty:80},
+  hard:  {label:'むずかしい',colors:7, rows:9, cols:8, color:'var(--c5)', scoreMult:1.4, delayedMerges:3, firstTapBottomRow:true,  targetTime:150, timeBonusPerSec:8, maxStartGroupSize:9,   perfectBonus:800, undoPenalty:80, hasFog:true, noConsecutiveColor:true},
   infinite:{label:'むげん', colors:7, rows:9, cols:8, color:'var(--c4)', scoreMult:1.4, delayedMerges:0, firstTapBottomRow:true,  targetTime:30,  timeBonusPerSec:0, maxStartGroupSize:9,   perfectBonus:0, isInfinite:true, undoPenalty:80},
-  hard_daily:{label:'むずかしい・デイリー', colors:7, rows:9, cols:8, color:'var(--c5)', scoreMult:1.4, delayedMerges:3, firstTapBottomRow:true,  targetTime:150, timeBonusPerSec:8, maxStartGroupSize:9,   perfectBonus:800, undoPenalty:80, isDaily:true, dailyBaseKey:'hard'},
+  hard_daily:{label:'むずかしい・デイリー', colors:7, rows:9, cols:8, color:'var(--c5)', scoreMult:1.4, delayedMerges:3, firstTapBottomRow:true,  targetTime:150, timeBonusPerSec:8, maxStartGroupSize:9,   perfectBonus:800, undoPenalty:80, isDaily:true, dailyBaseKey:'hard', hasFog:true, noConsecutiveColor:true},
   infinite_daily:{label:'むげん・デイリー', colors:7, rows:9, cols:8, color:'var(--c4)', scoreMult:1.4, delayedMerges:0, firstTapBottomRow:true,  targetTime:30,  timeBonusPerSec:0, maxStartGroupSize:9,   perfectBonus:0, isInfinite:true, undoPenalty:80, isDaily:true, dailyBaseKey:'infinite'}
 };
 function diffName(key){ return t('diff_'+key+'_name'); }
@@ -857,7 +864,7 @@ const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
 
 // ---------- みんなのランキング(Supabase) ----------
 // ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
-const APP_VERSION='1.9.5';
+const APP_VERSION='1.11.0';
 
 const SUPABASE_URL='https://jhrwpwpzxgxlvbartvqr.supabase.co/rest/v1/';
 const SUPABASE_KEY='sb_publishable_AaiMwnPXCL0oCfvQRqi9wA_x3Bl33da';
@@ -1197,6 +1204,7 @@ async function supabaseFetchFullBoard(playDate,diff){
 let difficulty=null;
 let ROWS=6, COLS=6, COLORS=5;
 let grid=[];
+let fogCells=new Set(); // 「霧」で隠れてるマスの座標(見た目だけ。最初の1手が成功したら全部晴れる)
 let initialGrid=[]; // そのラウンド開始時点の盤面(おつかれさま後のお手本再生で使用)
 let score=0;
 let startTime=0;
@@ -1206,6 +1214,7 @@ let roundOver=true;      // ゲーム開始前はtrue(操作不可)
 let hintPenaltyPending=false; // ヒントを使った直後は、次に消した時のスコアが半分になる
 let firstMoveDone=false; // ふつう・むずかしいでは、最初の1回だけ一番下の行を消す必要がある
 let undoSnapshot=null; // 直前の1手を戻すためのスナップショット(1回分だけ)
+let lastClearedColor=-1; // むずかしいの「同色連続禁止」用
 let records={};
 let calMonthOffset=0;
 
@@ -1401,11 +1410,12 @@ function allGroups(g){
 }
 
 // ランダムな順番で何度も自動プレイしてみて、全部消し切れる手順が見つかるか探す
-function trySolveFull(startGrid,attempts,requireFirstBottom){
+function trySolveFull(startGrid,attempts,requireFirstBottom,avoidConsecutiveColor,initialLastColor){
   for(let a=0;a<attempts;a++){
     let g=cloneGrid(startGrid);
     const sequence=[];
     let first=true;
+    let lastColor=(initialLastColor!==undefined)?initialLastColor:-1;
     while(true){
       let groups=allGroups(g);
       if(groups.length===0) break;
@@ -1414,7 +1424,13 @@ function trySolveFull(startGrid,attempts,requireFirstBottom){
         groups=groups.filter(gr=>gr.some(([r,c])=>r===ROWS-1));
         if(groups.length===0) break;
       }
+      if(avoidConsecutiveColor){
+        // 直前に消した色と同じ色は避ける(選べる候補が無くなったら、その時だけ緊急的に許可する)
+        const filtered=groups.filter(gr=>g[gr[0][0]][gr[0][1]]!==lastColor);
+        if(filtered.length>0) groups=filtered;
+      }
       const pick=groups[Math.floor(rand()*groups.length)];
+      lastColor=g[pick[0][0]][pick[0][1]];
       sequence.push(pick);
       pick.forEach(([r,c])=>{ g[r][c]=null; });
       g=applyGravityAndCompact(g);
@@ -1482,24 +1498,40 @@ function capGroupSizes(grid,maxSize){
 
 function makeGrid(){
   const d=DIFFICULTIES[difficulty]||{};
+  fogCells=new Set(); // 前のラウンドの霧が残らないよう、まずリセット
   if(d.isInfinite) return makeInfiniteGrid();
-  const GEN_RETRIES=200, SOLVE_ATTEMPTS=40;
+  const GEN_RETRIES=200, SOLVE_ATTEMPTS=60;
   const delayedCount = d.delayedMerges || 0;
   const requireFirstBottom = !!d.firstTapBottomRow;
   const maxStart = d.maxStartGroupSize || null;
+  const avoidConsecutive = !!d.noConsecutiveColor;
   if(d.isDaily) rngState=mulberry32(dailySeedFor(d.dailyBaseKey||difficulty));
   try{
     for(let i=0;i<GEN_RETRIES;i++){
       let g=tileBoard();
       if(delayedCount>0) injectDelayedMerge(g,delayedCount);
       if(maxStart) g=capGroupSizes(g,maxStart);
-      // 実際のプレイと同じ「最初の1手は一番下の行」ルールの下で、全消しできることを検証する
-      if(trySolveFull(g,SOLVE_ATTEMPTS,requireFirstBottom)) return g;
+      // 実際のプレイと同じルール(最初は一番下の行・同色連続禁止)の下で、全消しできることを検証する
+      if(trySolveFull(g,SOLVE_ATTEMPTS,requireFirstBottom,avoidConsecutive)){
+        if(d.hasFog) fogCells=pickFogCells(g);
+        return g;
+      }
     }
     return tileBoard(); // 万一見つからない場合の保険(ごくまれ)
   }finally{
     rngState=null; // デイリー生成が終わったら、必ず普通の乱数に戻す
   }
+}
+
+// 盤面のマスのうち、およそ25%を「霧」で隠す対象として選ぶ(見た目だけの仕掛けなので、消せる組み合わせには影響しない)
+function pickFogCells(g){
+  const cells=new Set();
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      if(g[r][c]!==null && rand()<0.25) cells.add(r+'_'+c);
+    }
+  }
+  return cells;
 }
 
 // むげんモード用: 全消し保証は不要。最初の一手が一番下の行にあることだけ確認する軽量版
@@ -1578,15 +1610,17 @@ function render(){
   boardEl.innerHTML='';
   const fontSize = COLS>=8 ? 'clamp(14px,3.6vw,20px)' : 'clamp(18px,5vw,26px)';
   const lockNonBottom = DIFFICULTIES[difficulty] && DIFFICULTIES[difficulty].firstTapBottomRow && !firstMoveDone;
+  const showFog = fogCells.size>0 && !firstMoveDone; // 最初の1手が成功するまでだけ霧を見せる
   for(let r=0;r<ROWS;r++){
     for(let c=0;c<COLS;c++){
       const val=grid[r][c];
       const btn=document.createElement('button');
-      let cls='cell'+(val===null?' empty':' c'+val);
+      const isFogged = showFog && val!==null && fogCells.has(r+'_'+c);
+      let cls = isFogged ? 'cell fogged' : ('cell'+(val===null?' empty':' c'+val));
       if(lockNonBottom && val!==null && r!==ROWS-1) cls+=' locked';
       btn.className=cls;
       btn.style.fontSize=fontSize;
-      if(val!==null) btn.textContent=SYMBOLS[val];
+      if(val!==null) btn.textContent = isFogged ? '？' : SYMBOLS[val];
       btn.dataset.r=r; btn.dataset.c=c;
       btn.addEventListener('click',onCellTap);
       boardEl.appendChild(btn);
@@ -1609,6 +1643,14 @@ async function onCellTap(e){
     return;
   }
 
+  if(DIFFICULTIES[difficulty].noConsecutiveColor && grid[r][c]===lastClearedColor){
+    e.currentTarget.classList.add('shake');
+    setTimeout(()=>{ e.currentTarget && e.currentTarget.classList.remove('shake'); },300);
+    msgEl.textContent=t('msgSameColorBlocked');
+    setTimeout(()=>{ if(!roundOver && !busy) msgEl.textContent=t('msgDefault'); },2200);
+    return;
+  }
+
   const group=findGroup(grid,r,c);
   if(group.length<3){
     e.currentTarget.classList.add('shake');
@@ -1621,10 +1663,11 @@ async function onCellTap(e){
     const d=DIFFICULTIES[difficulty];
     if(!d.isInfinite){
       // 1手戻る用に、この手を打つ前の状態を保存しておく(1回分だけ)
-      undoSnapshot={grid:cloneGrid(grid),score,firstMoveDone};
+      undoSnapshot={grid:cloneGrid(grid),score,firstMoveDone,lastClearedColor};
       undoBtn.disabled=false;
     }
     firstMoveDone=true;
+    if(d.noConsecutiveColor) lastClearedColor=grid[r][c];
     let gained=Math.round(group.length*(group.length-1)*5*DIFFICULTIES[difficulty].scoreMult);
     let penalized=false;
     if(hintPenaltyPending){
@@ -1775,6 +1818,7 @@ async function undoLastMove(){
     grid=cloneGrid(undoSnapshot.grid);
     score=Math.max(0,score-penalty);
     firstMoveDone=undoSnapshot.firstMoveDone;
+    lastClearedColor=undoSnapshot.lastClearedColor!==undefined ? undoSnapshot.lastClearedColor : -1;
     undoSnapshot=null;
     undoBtn.disabled=true;
     render();
@@ -1795,17 +1839,16 @@ undoBtn.addEventListener('click',undoLastMove);
 // ---------- ヒント(使うと次に消した時のスコアが半分になる) ----------
 async function showHint(){
   if(roundOver||busy) return;
-  const restrictBottom = DIFFICULTIES[difficulty].firstTapBottomRow && !firstMoveDone;
-  let group;
-  if(restrictBottom){
-    const candidates=allGroups(grid).filter(g=>g.some(([r,c])=>r===ROWS-1));
-    group = candidates.length ? candidates.reduce((a,b)=>b.length>a.length?b:a) : null;
-    if(!group){
-      msgEl.textContent=t('msgNoBottomMoves');
-      return;
-    }
-  }else{
-    group=bestGroup(grid);
+  const d=DIFFICULTIES[difficulty];
+  const restrictBottom = d.firstTapBottomRow && !firstMoveDone;
+  const restrictColor = d.noConsecutiveColor;
+  let candidates=allGroups(grid);
+  if(restrictBottom) candidates=candidates.filter(g=>g.some(([r,c])=>r===ROWS-1));
+  if(restrictColor) candidates=candidates.filter(g=>grid[g[0][0]][g[0][1]]!==lastClearedColor);
+  let group = candidates.length ? candidates.reduce((a,b)=>b.length>a.length?b:a) : null;
+  if(!group && restrictBottom){
+    msgEl.textContent=t('msgNoBottomMoves');
+    return;
   }
   if(!group){
     msgEl.textContent=t('msgNoMoves');
@@ -1883,14 +1926,17 @@ async function autoSolveDemo(){
   // このラウンドでまだ最初の一手を消化していない状態からの再生なら、
   // お手本の最初の一手も「一番下の行」限定にする(かんたん以外)
   const requireFirstBottom = DIFFICULTIES[difficulty].firstTapBottomRow && (demoRestarted || !firstMoveDone);
+  const avoidConsecutive = !!DIFFICULTIES[difficulty].noConsecutiveColor;
+  const demoStartLastColor = demoRestarted ? -1 : lastClearedColor;
 
-  let sequence=trySolveFull(grid,150,requireFirstBottom);
+  let sequence=trySolveFull(grid,150,requireFirstBottom,avoidConsecutive,demoStartLastColor);
   demoFullyClearable=!!sequence;
   if(!sequence){
     // 途中の手の順番によっては全消しできない場合もあるので、その時は「消せるだけ」見せる
     sequence=[];
     let g=cloneGrid(grid);
     let first=true;
+    let demoLastColor=demoStartLastColor;
     while(true){
       let groups=allGroups(g);
       if(groups.length===0) break;
@@ -1898,7 +1944,12 @@ async function autoSolveDemo(){
         groups=groups.filter(gr=>gr.some(([r,c])=>r===ROWS-1));
         if(groups.length===0) break;
       }
+      if(avoidConsecutive){
+        const filtered=groups.filter(gr=>g[gr[0][0]][gr[0][1]]!==demoLastColor);
+        if(filtered.length>0) groups=filtered;
+      }
       const group = groups.reduce((a,b)=>b.length>a.length?b:a);
+      demoLastColor=g[group[0][0]][group[0][1]];
       sequence.push(group);
       group.forEach(([r,c])=>{ g[r][c]=null; });
       g=applyGravityAndCompact(g);
@@ -1978,6 +2029,7 @@ function startGame(diff){
   hintPenaltyPending=false;
   firstMoveDone=false;
   undoSnapshot=null;
+  lastClearedColor=-1;
   updateGiveupButton();
   hintBtn.disabled=false;
   undoBtn.disabled=true;
