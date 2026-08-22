@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="app-version" content="1.9.4">
+<meta name="app-version" content="1.9.5">
 <title>いろあわせパズル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -857,7 +857,7 @@ const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
 
 // ---------- みんなのランキング(Supabase) ----------
 // ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
-const APP_VERSION='1.9.4';
+const APP_VERSION='1.9.5';
 
 const SUPABASE_URL='https://jhrwpwpzxgxlvbartvqr.supabase.co/rest/v1/';
 const SUPABASE_KEY='sb_publishable_AaiMwnPXCL0oCfvQRqi9wA_x3Bl33da';
@@ -1146,6 +1146,7 @@ function dedupeTopByUser(rows,topN){
 
 async function supabaseInsertScore(nickname,diff,scoreVal,timeSec){
   try{
+    await ensureProfile(); // 送信の直前にも、念のため本人確認用IDの紐付けを確認しておく
     await fetchWithTimeout(SUPABASE_URL+'scores',{
       method:'POST',
       headers: await authHeaders({
@@ -2727,6 +2728,9 @@ document.getElementById('langToggleBtn').addEventListener('click',toggleLanguage
   document.getElementById('versionTag').textContent='v'+APP_VERSION;
   await checkForUpdate(); // 古いバージョンならここでリロードされ、以降の処理は行われない
   ensureAuthSession(); // 匿名サインインを裏側で先に済ませておく(結果を待たずに進める)
+  if(isRankingOptedIn()){
+    ensureProfile(); // 既にランキング参加済みの人は、ここで本人確認用IDの紐付けも済ませておく(結果を待たずに進める)
+  }
   applyLanguage();
   todayLabel();
   await loadRecords();
