@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="app-version" content="1.11.0">
+<meta name="app-version" content="1.11.1">
 <title>いろあわせパズル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -712,6 +712,7 @@ const I18N={
     resultTitlePerfect:'パーフェクト!!', resultTitleCleared:'おつかれさま!',
     resultTitleGiveup:'ギブアップ!', resultTitleTimeUp:'タイムアップ!',
     resultTitleStuck:'おつかれさま!全部消せなくなっちゃったよ!',
+    resultTitleColorLocked:'おつかれさま!同じ色しか残ってないよ!',
     resultScoreLabel:'スコア', resultTimeLabel:'時間',
     resultHighScore:'✨ 本日のハイスコア更新! ✨',
     resultDemoBtn:'お手本を見る',
@@ -815,6 +816,7 @@ const I18N={
     resultTitlePerfect:'Perfect!!', resultTitleCleared:'Well done!',
     resultTitleGiveup:'Gave Up!', resultTitleTimeUp:"Time's Up!",
     resultTitleStuck:"Well done! No more moves left!",
+    resultTitleColorLocked:"Well done! Only the same color is left!",
     resultScoreLabel:'Score', resultTimeLabel:'Time',
     resultHighScore:'✨ New Daily High Score! ✨',
     resultDemoBtn:'Watch Solution',
@@ -864,7 +866,7 @@ const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
 
 // ---------- みんなのランキング(Supabase) ----------
 // ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
-const APP_VERSION='1.11.0';
+const APP_VERSION='1.11.1';
 
 const SUPABASE_URL='https://jhrwpwpzxgxlvbartvqr.supabase.co/rest/v1/';
 const SUPABASE_KEY='sb_publishable_AaiMwnPXCL0oCfvQRqi9wA_x3Bl33da';
@@ -1586,6 +1588,10 @@ function findGroup(g,r,c){
 function hasMove(g){
   return allGroups(g).length>0;
 }
+// 「直前に消した色」を除いても、まだ消せるグループがあるか(同色連続禁止ルール用)
+function hasMoveExcludingColor(g,excludeColor){
+  return allGroups(g).some(gr=>g[gr[0][0]][gr[0][1]]!==excludeColor);
+}
 // 盤面全体を走査して、いちばん大きく繋がっているグループを探す(ヒントで使用)
 function bestGroup(g){
   const groups=allGroups(g);
@@ -1704,6 +1710,9 @@ async function onCellTap(e){
       if(!hasMove(grid)){
         const isPerfect = grid.every(row=>row.every(cell=>cell===null));
         await finishRound(isPerfect ? t('resultTitlePerfect') : t('resultTitleCleared'), true, isPerfect);
+      }else if(d.noConsecutiveColor && !hasMoveExcludingColor(grid,lastClearedColor)){
+        // まだマスは残ってるけど、その全部が「直前と同じ色」で事実上詰んでる状態
+        await finishRound(t('resultTitleColorLocked'), true, false);
       }else if(penalized){
         msgEl.textContent=t('msgHintPenalty');
         setTimeout(()=>{ if(!roundOver) msgEl.textContent=t('msgDefault'); },2200);
