@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="app-version" content="1.8.2">
+<meta name="app-version" content="1.9.4">
 <title>いろあわせパズル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -158,8 +158,22 @@
   .diff-card h2{margin:0 0 4px;font-size:29px;font-weight:900;}
   .diff-card p{margin:0;font-size:15px;color:var(--ink-soft);}
   .diff-subrow{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;}
+  .daily-banner{
+    background:linear-gradient(135deg,#fff6f1,var(--paper-deep));border:2px solid var(--shu);
+    border-radius:18px;padding:14px;margin-bottom:14px;text-align:center;
+  }
+  .daily-banner-title{font-size:16px;font-weight:900;color:var(--shu);}
+  .daily-banner-sub{font-size:12px;color:var(--ink-soft);margin:2px 0 10px;}
+  .daily-banner-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .daily-choice{margin-bottom:0!important;padding:12px 8px!important;background:#fff!important;}
+  .daily-choice .name{font-size:15px!important;}
   .diff-subrow p{flex:1 1 auto;min-width:0;}
   .diff-subrow .card-cal-btn-inline{flex-shrink:0;}
+  .diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+  .diff-grid .diff-choice{margin-bottom:0;padding:12px;}
+  .diff-grid .diff-choice .name{font-size:16px;}
+  .diff-grid .diff-choice .desc{font-size:11px;line-height:1.4;}
+  .diff-grid .beginner-badge{font-size:10px;padding:3px 8px;margin-top:4px;}
   .diff-choice{
     width:100%;background:#fff;border:2px solid transparent;border-radius:16px;
     padding:16px;margin-bottom:8px;font-family:inherit;cursor:pointer;
@@ -168,6 +182,11 @@
   }
   .diff-choice .name{font-size:21px;font-weight:900;color:var(--ink);}
   .diff-choice .desc{font-size:15px;color:var(--ink-soft);font-weight:500;line-height:1.5;}
+  .more-menu-toggle{
+    width:100%;background:none;border:none;color:var(--ink-soft);font-size:13px;
+    font-weight:700;font-family:inherit;cursor:pointer;padding:10px;text-align:center;
+  }
+  .more-menu{margin-top:4px;}
   .beginner-badge{
     display:inline-block;margin-top:8px;background:var(--shu);color:#fff;
     font-size:13px;font-weight:700;padding:4px 12px;border-radius:999px;
@@ -216,12 +235,6 @@
     font-size:22px;color:var(--paper-deep);font-family:inherit;cursor:pointer;
   }
   .star-btn.active{border-color:#EDB92E;color:#EDB92E;background:#fffaf0;}
-  .age-group-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .age-btn{
-    background:#fff;border:2px solid var(--paper-deep);border-radius:14px;padding:12px 4px;
-    font-size:14px;font-weight:700;color:var(--ink-soft);font-family:inherit;cursor:pointer;
-  }
-  .age-btn.active{border-color:var(--shu);color:var(--shu);background:#fff6f1;}
   .group-friendcode-box{
     background:#fff;border-radius:14px;padding:12px 14px;text-align:center;font-size:15px;
     margin-bottom:14px;box-shadow:0 1px 4px rgba(59,50,42,.08);
@@ -415,16 +428,32 @@
       <button class="card-cal-btn-inline" id="openTutorialFromDiff" aria-label="あそびかた">❓</button>
       <button class="card-cal-btn-inline" id="openCalFromDiff" aria-label="記録を見る">📅</button>
     </div>
-    <button class="diff-choice" data-d="easy">
-      <span class="name"></span>
-      <span class="desc"></span>
-      <span class="beginner-badge"></span>
-    </button>
-    <button class="diff-choice" data-d="normal"><span class="name"></span><span class="desc"></span></button>
-    <button class="diff-choice" data-d="hard"><span class="name"></span><span class="desc"></span></button>
-    <button class="diff-choice" data-d="infinite"><span class="name"></span><span class="desc"></span></button>
+    <div class="daily-banner">
+      <div class="daily-banner-title" id="dailyBannerTitleText">🗓️ 今日のデイリー</div>
+      <div class="daily-banner-sub" id="dailyBannerSubText">毎朝8時に更新・みんな同じ盤面で勝負!</div>
+      <div class="daily-banner-row">
+        <button class="diff-choice daily-choice" data-d="hard_daily"><span class="name"></span></button>
+        <button class="diff-choice daily-choice" data-d="infinite_daily"><span class="name"></span></button>
+      </div>
+    </div>
+    <div class="diff-grid">
+      <button class="diff-choice" data-d="easy">
+        <span class="name"></span>
+        <span class="desc"></span>
+        <span class="beginner-badge"></span>
+      </button>
+      <button class="diff-choice" data-d="normal"><span class="name"></span><span class="desc"></span></button>
+      <button class="diff-choice" data-d="hard"><span class="name"></span><span class="desc"></span></button>
+      <button class="diff-choice" data-d="infinite"><span class="name"></span><span class="desc"></span></button>
+    </div>
     <div class="ranking-section" id="rankingSection"></div>
-    <button class="feedback-btn" id="openFeedbackBtn">📝 アンケート・ご意見</button>
+    <button class="more-menu-toggle" id="moreMenuToggle" type="button">
+      <span id="moreMenuToggleText">▼ その他のメニュー(グループ・ご意見)</span>
+    </button>
+    <div class="more-menu" id="moreMenu" style="display:none;">
+      <button class="ranking-join-btn" id="manageGroupBtn" style="display:none;margin-bottom:10px;">👥 グループを管理</button>
+      <button class="feedback-btn" id="openFeedbackBtn">📝 アンケート・ご意見</button>
+    </div>
     <div class="version-tag" id="versionTag"></div>
   </div>
 </div>
@@ -441,14 +470,6 @@
     <p class="field-label" id="friendCodeLabelText">合言葉(友だちに教える用)</p>
     <p class="field-hint" id="friendCodeHintText">この合言葉を知っている友だちと、スコアを競えるようになるよ!ひらがな・カタカナ・漢字・英数字で自由に決めてOK</p>
     <input type="text" id="friendCodeInput" maxlength="10" placeholder="例: あいことば" class="nickname-input">
-
-    <p class="field-label" id="ageGroupLabelText">年代(任意)</p>
-    <div class="age-group-row" id="ageGroupRow">
-      <button type="button" class="age-btn" data-age="senior">👴 シニア</button>
-      <button type="button" class="age-btn" data-age="adult">👨 大人</button>
-      <button type="button" class="age-btn" data-age="youth">🧑‍🎓 若者</button>
-      <button type="button" class="age-btn" data-age="">答えない</button>
-    </div>
 
     <button class="newgame" id="nicknameConfirmBtn" style="width:100%;margin-top:14px;">けってい</button>
     <button class="result-close" id="nicknameCancelBtn" style="width:100%;">やめる</button>
@@ -628,6 +649,9 @@ const I18N={
     diff_normal_name:'ふつう', diff_normal_desc:'{colors}色・{rows}×{cols}マス・最初は一番下の行から',
     diff_hard_name:'むずかしい', diff_hard_desc:'{colors}色・{rows}×{cols}マス・最初は一番下の行から',
     diff_infinite_name:'♾️ むげん', diff_infinite_desc:'30秒間で何個消せるかチャレンジ・上から無限に降ってくる',
+    diff_hard_daily_name:'🗓️ むずかしい・デイリー', diff_hard_daily_desc:'7色・8×9マス・今日はみんな同じ盤面!',
+    diff_infinite_daily_name:'🗓️ むげん・デイリー', diff_infinite_daily_desc:'30秒チャレンジ・スタートの盤面は今日はみんな同じ!',
+    dailyBannerTitle:'🗓️ 今日のデイリー', dailyBannerSub:'毎朝8時に更新・みんな同じ盤面で勝負!',
     beginnerBadge:'はじめての人はこちらから',
     diffSummary:'{name}({colors}色・{rows}×{cols})',
 
@@ -821,7 +845,9 @@ const DIFFICULTIES={
   easy:  {label:'かんたん', colors:5, rows:6, cols:6, color:'var(--c1)', scoreMult:0.7, delayedMerges:0, firstTapBottomRow:false, targetTime:60,  timeBonusPerSec:2, maxStartGroupSize:null, perfectBonus:200, undoPenalty:30},
   normal:{label:'ふつう',   colors:7, rows:6, cols:6, color:'var(--c2)', scoreMult:1,   delayedMerges:1, firstTapBottomRow:true,  targetTime:90,  timeBonusPerSec:4, maxStartGroupSize:9,   perfectBonus:400, undoPenalty:50},
   hard:  {label:'むずかしい',colors:7, rows:9, cols:8, color:'var(--c5)', scoreMult:1.4, delayedMerges:3, firstTapBottomRow:true,  targetTime:150, timeBonusPerSec:8, maxStartGroupSize:9,   perfectBonus:800, undoPenalty:80},
-  infinite:{label:'むげん', colors:7, rows:9, cols:8, color:'var(--c4)', scoreMult:1.4, delayedMerges:0, firstTapBottomRow:true,  targetTime:30,  timeBonusPerSec:0, maxStartGroupSize:9,   perfectBonus:0, isInfinite:true, undoPenalty:80}
+  infinite:{label:'むげん', colors:7, rows:9, cols:8, color:'var(--c4)', scoreMult:1.4, delayedMerges:0, firstTapBottomRow:true,  targetTime:30,  timeBonusPerSec:0, maxStartGroupSize:9,   perfectBonus:0, isInfinite:true, undoPenalty:80},
+  hard_daily:{label:'むずかしい・デイリー', colors:7, rows:9, cols:8, color:'var(--c5)', scoreMult:1.4, delayedMerges:3, firstTapBottomRow:true,  targetTime:150, timeBonusPerSec:8, maxStartGroupSize:9,   perfectBonus:800, undoPenalty:80, isDaily:true, dailyBaseKey:'hard'},
+  infinite_daily:{label:'むげん・デイリー', colors:7, rows:9, cols:8, color:'var(--c4)', scoreMult:1.4, delayedMerges:0, firstTapBottomRow:true,  targetTime:30,  timeBonusPerSec:0, maxStartGroupSize:9,   perfectBonus:0, isInfinite:true, undoPenalty:80, isDaily:true, dailyBaseKey:'infinite'}
 };
 function diffName(key){ return t('diff_'+key+'_name'); }
 function diffDesc(key){ const d=DIFFICULTIES[key]; return t('diff_'+key+'_desc',{colors:d.colors,rows:d.rows,cols:d.cols}); }
@@ -831,7 +857,7 @@ const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
 
 // ---------- みんなのランキング(Supabase) ----------
 // ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
-const APP_VERSION='1.8.2';
+const APP_VERSION='1.9.4';
 
 const SUPABASE_URL='https://jhrwpwpzxgxlvbartvqr.supabase.co/rest/v1/';
 const SUPABASE_KEY='sb_publishable_AaiMwnPXCL0oCfvQRqi9wA_x3Bl33da';
@@ -963,13 +989,10 @@ async function fetchWithTimeout(url,options,timeoutMs){
   }
 }
 
-// ---------- プロフィール(合言葉・年代) ----------
+// ---------- プロフィール(合言葉) ----------
 const FRIEND_CODE_KEY='puzzle-friend-code';
-const AGE_GROUP_KEY='puzzle-age-group';
 function getFriendCode(){ try{ return localStorage.getItem(FRIEND_CODE_KEY)||''; }catch(e){ return ''; } }
 function setFriendCode(v){ try{ localStorage.setItem(FRIEND_CODE_KEY,v); }catch(e){} }
-function getAgeGroup(){ try{ return localStorage.getItem(AGE_GROUP_KEY)||''; }catch(e){ return ''; } }
-function setAgeGroup(v){ try{ localStorage.setItem(AGE_GROUP_KEY,v||''); }catch(e){} }
 
 function generateFriendCode(){
   const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 紛らわしい文字(0/O, 1/I)は除外
@@ -998,7 +1021,6 @@ async function ensureProfile(){
       const rows=await res.json();
       if(rows.length){
         setFriendCode(rows[0].friend_code||'');
-        setAgeGroup(rows[0].age_group||'');
         // まだ本人確認用IDが紐付いてなければ、ここで紐付ける(既存ユーザーの自動移行)
         if(!rows[0].auth_uid && authUid){
           try{
@@ -1028,7 +1050,6 @@ async function ensureProfile(){
         const rows=await res.json();
         if(rows.length){
           setFriendCode(rows[0].friend_code||'');
-          setAgeGroup(rows[0].age_group||'');
           return rows[0];
         }
       }
@@ -1092,15 +1113,6 @@ async function fetchAllMyGroupMateIds(){
   }
   return ids;
 }
-async function fetchUserIdsByAgeGroup(age){
-  try{
-    const res=await fetchWithTimeout(`${SUPABASE_URL}profiles?age_group=eq.${age}&select=user_id`,{headers:await authHeaders()},6000);
-    if(!res.ok) return new Set();
-    const rows=await res.json();
-    return new Set(rows.map(r=>r.user_id));
-  }catch(e){ return new Set(); }
-}
-
 // 起動時に、公開されている最新のファイルとバージョンを比べて、古ければ自動でリロードする
 async function checkForUpdate(){
   try{
@@ -1285,10 +1297,37 @@ function startCountdown(seconds,onTimeUp){
 }
 
 // ---------- grid logic ----------
-function randColor(){return Math.floor(Math.random()*COLORS);}
+// デイリー(全員同じ盤面)用の、種から作れる乱数生成器。普段はMath.random()を使い、
+// デイリー生成中だけこちらに差し替える
+let rngState=null;
+function rand(){ return rngState ? rngState() : Math.random(); }
+function mulberry32(seed){
+  let s=seed>>>0;
+  return function(){
+    s=(s+0x6D2B79F5)|0;
+    let t=Math.imul(s^(s>>>15),1|s);
+    t=(t+Math.imul(t^(t>>>7),61|t))^t;
+    return ((t^(t>>>14))>>>0)/4294967296;
+  };
+}
+// 日本時間の「朝8時」を1日の区切りとして扱う日付キー
+function getDailyDateKey(){
+  const jstStr=new Date().toLocaleString('en-US',{timeZone:'Asia/Tokyo'});
+  const jst=new Date(jstStr);
+  const shifted=new Date(jst.getTime()-8*60*60*1000);
+  return `${shifted.getFullYear()}-${pad(shifted.getMonth()+1)}-${pad(shifted.getDate())}`;
+}
+function dailySeedFor(baseDiffKey){
+  const str=getDailyDateKey()+':'+baseDiffKey;
+  let h=0;
+  for(let i=0;i<str.length;i++){ h=(Math.imul(31,h)+str.charCodeAt(i))|0; }
+  return h;
+}
+
+function randColor(){return Math.floor(rand()*COLORS);}
 function shuffle(arr){
   for(let i=arr.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
+    const j=Math.floor(rand()*(i+1));
     [arr[i],arr[j]]=[arr[j],arr[i]];
   }
   return arr;
@@ -1310,13 +1349,13 @@ function tileBoard(){
   for(const [r,c] of order){
     if(claimed.has(cellKey(r,c))) continue;
     const color=randColor();
-    const targetSize=3+Math.floor(Math.random()*2); // 3〜4マス(小さめの塊にして難易度アップ)
+    const targetSize=3+Math.floor(rand()*2); // 3〜4マス(小さめの塊にして難易度アップ)
     const region=[[r,c]];
     claimed.add(cellKey(r,c));
     grid[r][c]=color;
     let frontier=nbrs(r,c).filter(([nr,nc])=>!claimed.has(cellKey(nr,nc)));
     while(region.length<targetSize && frontier.length>0){
-      const idx=Math.floor(Math.random()*frontier.length);
+      const idx=Math.floor(rand()*frontier.length);
       const [nr,nc]=frontier.splice(idx,1)[0];
       if(claimed.has(cellKey(nr,nc))) continue;
       claimed.add(cellKey(nr,nc));
@@ -1374,7 +1413,7 @@ function trySolveFull(startGrid,attempts,requireFirstBottom){
         groups=groups.filter(gr=>gr.some(([r,c])=>r===ROWS-1));
         if(groups.length===0) break;
       }
-      const pick=groups[Math.floor(Math.random()*groups.length)];
+      const pick=groups[Math.floor(rand()*groups.length)];
       sequence.push(pick);
       pick.forEach(([r,c])=>{ g[r][c]=null; });
       g=applyGravityAndCompact(g);
@@ -1392,8 +1431,8 @@ function injectDelayedMerge(grid,count){
   if(ROWS<5) return 0;
   while(injected<count && attempts<200){
     attempts++;
-    const c=Math.floor(Math.random()*COLS);
-    const r0=Math.floor(Math.random()*(ROWS-4));
+    const c=Math.floor(rand()*COLS);
+    const r0=Math.floor(rand()*(ROWS-4));
     const T=randColor();
     let B=randColor();
     while(B===T) B=randColor();
@@ -1406,8 +1445,8 @@ function injectDelayedMerge(grid,count){
     // 邪魔なブロックB自体はちゃんと3マス以上で消せるように、隣の列にも1マス伸ばす
     const neighborCols=[c-1,c+1].filter(nc=>nc>=0&&nc<COLS);
     if(neighborCols.length>0){
-      const nc=neighborCols[Math.floor(Math.random()*neighborCols.length)];
-      const whichRow = Math.random()<0.5 ? r0+1 : r0+2;
+      const nc=neighborCols[Math.floor(rand()*neighborCols.length)];
+      const whichRow = rand()<0.5 ? r0+1 : r0+2;
       grid[whichRow][nc]=B;
     }
     injected++;
@@ -1434,7 +1473,7 @@ function capGroupSizes(grid,maxSize){
     }
     const options=[];
     for(let k=0;k<COLORS;k++) if(!boundaryColors.has(k)) options.push(k);
-    const newColor = options.length ? options[Math.floor(Math.random()*options.length)] : randColor();
+    const newColor = options.length ? options[Math.floor(rand()*options.length)] : randColor();
     excess.forEach(([r,c])=>{ grid[r][c]=newColor; });
   }
   return grid;
@@ -1447,27 +1486,39 @@ function makeGrid(){
   const delayedCount = d.delayedMerges || 0;
   const requireFirstBottom = !!d.firstTapBottomRow;
   const maxStart = d.maxStartGroupSize || null;
-  for(let i=0;i<GEN_RETRIES;i++){
-    let g=tileBoard();
-    if(delayedCount>0) injectDelayedMerge(g,delayedCount);
-    if(maxStart) g=capGroupSizes(g,maxStart);
-    // 実際のプレイと同じ「最初の1手は一番下の行」ルールの下で、全消しできることを検証する
-    if(trySolveFull(g,SOLVE_ATTEMPTS,requireFirstBottom)) return g;
+  if(d.isDaily) rngState=mulberry32(dailySeedFor(d.dailyBaseKey||difficulty));
+  try{
+    for(let i=0;i<GEN_RETRIES;i++){
+      let g=tileBoard();
+      if(delayedCount>0) injectDelayedMerge(g,delayedCount);
+      if(maxStart) g=capGroupSizes(g,maxStart);
+      // 実際のプレイと同じ「最初の1手は一番下の行」ルールの下で、全消しできることを検証する
+      if(trySolveFull(g,SOLVE_ATTEMPTS,requireFirstBottom)) return g;
+    }
+    return tileBoard(); // 万一見つからない場合の保険(ごくまれ)
+  }finally{
+    rngState=null; // デイリー生成が終わったら、必ず普通の乱数に戻す
   }
-  return tileBoard(); // 万一見つからない場合の保険(ごくまれ)
 }
 
 // むげんモード用: 全消し保証は不要。最初の一手が一番下の行にあることだけ確認する軽量版
 function makeInfiniteGrid(){
-  const d=DIFFICULTIES.infinite;
+  const d=DIFFICULTIES[difficulty]||DIFFICULTIES.infinite;
   const maxStart=d.maxStartGroupSize;
-  for(let i=0;i<50;i++){
-    let g=tileBoard();
-    if(maxStart) g=capGroupSizes(g,maxStart);
-    const bottomGroups=allGroups(g).filter(gr=>gr.some(([r,c])=>r===ROWS-1));
-    if(bottomGroups.length>0) return g;
+  if(d.isDaily) rngState=mulberry32(dailySeedFor(d.dailyBaseKey||difficulty));
+  try{
+    for(let i=0;i<50;i++){
+      let g=tileBoard();
+      if(maxStart) g=capGroupSizes(g,maxStart);
+      const bottomGroups=allGroups(g).filter(gr=>gr.some(([r,c])=>r===ROWS-1));
+      if(bottomGroups.length>0) return g;
+    }
+    return tileBoard();
+  }finally{
+    // むげん・デイリーだけは、ラウンド終了までこの乱数を種のまま使い続ける
+    // (降ってくる色の「順番」まで全員平等にするため。ここでは戻さない)
+    if(!(d.isInfinite && d.isDaily)) rngState=null;
   }
-  return tileBoard();
 }
 
 // むげんモード用: 空いた上の方に新しい色を無限に補充する
@@ -1624,6 +1675,7 @@ async function onCellTap(e){
 
 async function finishRound(prefix,allowTimeBonus,isPerfect){
   roundOver=true;
+  rngState=null; // ラウンドが終わったので、デイリー用の乱数を使ってたら普通に戻す
   updateGiveupButton();
   hintBtn.disabled=true;
   const elapsed=stopTimer();
@@ -1912,6 +1964,7 @@ async function replayDemo(){
 
 
 function startGame(diff){
+  rngState=null; // 前のラウンドの乱数が残ってたら、念のためここでリセットしておく
   difficulty=diff;
   const d=DIFFICULTIES[diff];
   ROWS=d.rows; COLS=d.cols; COLORS=d.colors;
@@ -1944,6 +1997,7 @@ function startGame(diff){
 async function onInfiniteTimeUp(){
   if(roundOver) return;
   roundOver=true;
+  rngState=null; // ラウンドが終わったので、デイリー用の乱数を使ってたら普通に戻す
   updateGiveupButton();
   hintBtn.disabled=true;
   const d=DIFFICULTIES[difficulty];
@@ -1960,6 +2014,7 @@ async function onInfiniteTimeUp(){
 async function finishInfiniteStuck(){
   if(roundOver) return;
   roundOver=true;
+  rngState=null; // ラウンドが終わったので、デイリー用の乱数を使ってたら普通に戻す
   updateGiveupButton();
   hintBtn.disabled=true;
   const elapsed=stopTimer(); // カウントダウンを止めて、その時点までの経過秒数を取得
@@ -1982,6 +2037,7 @@ function hideDiffPopup(){document.getElementById('diffOverlay').classList.remove
 // ---------- ランキング参加まわりのUI ----------
 function renderRankingSection(){
   const el=document.getElementById('rankingSection');
+  const groupBtn=document.getElementById('manageGroupBtn');
   if(isRankingOptedIn()){
     const name=getNickname();
     el.innerHTML=`
@@ -1989,8 +2045,7 @@ function renderRankingSection(){
       <div class="ranking-actions">
         <button id="changeNicknameBtn" class="ranking-link-btn">${t('rankingChangeNickname')}</button>
         <button id="leaveRankingBtn" class="ranking-link-btn">${t('rankingLeave')}</button>
-      </div>
-      <button id="manageGroupBtn" class="ranking-join-btn" style="margin-top:10px;">${t('groupBtn')}</button>`;
+      </div>`;
     document.getElementById('changeNicknameBtn').addEventListener('click',()=>showNicknameModal(false));
     document.getElementById('leaveRankingBtn').addEventListener('click',()=>{
       if(confirm(t('rankingLeaveConfirm'))){
@@ -1998,25 +2053,14 @@ function renderRankingSection(){
         renderRankingSection();
       }
     });
-    document.getElementById('manageGroupBtn').addEventListener('click',showGroupOverlay);
+    groupBtn.style.display='block';
   }else{
     el.innerHTML=`<button id="joinRankingBtn" class="ranking-join-btn">${t('rankingJoin')}</button>`;
     document.getElementById('joinRankingBtn').addEventListener('click',()=>showNicknameModal(true));
+    groupBtn.style.display='none';
   }
 }
-
-let selectedAgeGroup=''; // ''=答えない/未選択
-function setActiveAgeButton(age){
-  selectedAgeGroup=age;
-  document.querySelectorAll('#ageGroupRow .age-btn').forEach(b=>{
-    b.classList.toggle('active', b.dataset.age===age);
-  });
-}
-document.getElementById('ageGroupRow').addEventListener('click',(e)=>{
-  const btn=e.target.closest('.age-btn');
-  if(!btn) return;
-  setActiveAgeButton(btn.dataset.age);
-});
+document.getElementById('manageGroupBtn').addEventListener('click',showGroupOverlay);
 
 const GROUP_TUTORIAL_SEEN_KEY='puzzle-group-tutorial-seen';
 function showGroupTutorial(){
@@ -2090,17 +2134,15 @@ async function showNicknameModal(isJoinFlow){
   document.getElementById('nicknameInput').value=getNickname();
   document.getElementById('nicknameOverlay').dataset.joinFlow=isJoinFlow?'1':'0';
   document.getElementById('friendCodeInput').value=getFriendCode();
-  setActiveAgeButton(getAgeGroup());
   document.getElementById('nicknameOverlay').classList.add('show');
   let groupTutorialSeen=null;
   try{ groupTutorialSeen=localStorage.getItem(GROUP_TUTORIAL_SEEN_KEY); }catch(e){}
   if(!groupTutorialSeen){ showGroupTutorial(); }
-  // 既にランキング参加中なら、最新のプロフィール(合言葉・年代)を取得して埋める
+  // 既にランキング参加中なら、最新のプロフィール(合言葉)を取得して埋める
   if(isRankingOptedIn()){
     const p=await ensureProfile();
     if(p){
       document.getElementById('friendCodeInput').value=p.friend_code||getFriendCode();
-      setActiveAgeButton(p.age_group||'');
     }
   }
 }
@@ -2124,8 +2166,7 @@ document.getElementById('nicknameConfirmBtn').addEventListener('click',async ()=
   setNickname(val.slice(0,10));
   setRankingOptedIn(true);
   setFriendCode(code);
-  setAgeGroup(selectedAgeGroup);
-  await upsertProfile({nickname:val.slice(0,10),friend_code:code,age_group:selectedAgeGroup||null,updated_at:new Date().toISOString()});
+  await upsertProfile({nickname:val.slice(0,10),friend_code:code,updated_at:new Date().toISOString()});
   hideNicknameModal();
   renderRankingSection();
 
@@ -2358,9 +2399,6 @@ async function showTodayRanking(){
 async function renderCategorySelect(){
   const sel=document.getElementById('rankingCategorySelect');
   const options=[`<option value="national">${t('categoryNational')}</option>`];
-  options.push(`<option value="age:senior">${t('ageSenior')}</option>`);
-  options.push(`<option value="age:adult">${t('ageAdult')}</option>`);
-  options.push(`<option value="age:youth">${t('ageYouth')}</option>`);
   if(isRankingOptedIn()){
     const groups=await fetchMyGroups();
     groups.forEach(g=>{
@@ -2378,9 +2416,7 @@ async function renderRankingForCategory(category){
   let rows=rankingFullList;
   if(category && category!=='national'){
     let idSet=new Set();
-    if(category.startsWith('age:')){
-      idSet=await fetchUserIdsByAgeGroup(category.slice(4));
-    }else if(category.startsWith('group:')){
+    if(category.startsWith('group:')){
       idSet=await fetchGroupMemberIds(category.slice(6));
     }
     rows=rankingFullList.filter(r=>r.user_id && idSet.has(r.user_id));
@@ -2432,6 +2468,14 @@ document.getElementById('tutorialCloseBtn').addEventListener('click',()=>{
     pendingFirstLaunch=false;
     showDiffPopup();
   }
+});
+
+document.getElementById('moreMenuToggle').addEventListener('click',()=>{
+  const menu=document.getElementById('moreMenu');
+  const isOpen=menu.style.display!=='none';
+  menu.style.display=isOpen?'none':'block';
+  document.getElementById('moreMenuToggleText').textContent =
+    (isOpen?'▼':'▲')+' その他のメニュー(ランキング・グループ・ご意見)';
 });
 
 document.getElementById('diffOverlay').addEventListener('click',(e)=>{
@@ -2651,8 +2695,11 @@ function applyLanguage(){
     const btn=document.querySelector(`.diff-choice[data-d="${key}"]`);
     if(!btn) return;
     btn.querySelector('.name').textContent=diffName(key);
-    btn.querySelector('.desc').textContent=diffDesc(key);
+    const descEl=btn.querySelector('.desc');
+    if(descEl) descEl.textContent=diffDesc(key);
   });
+  document.getElementById('dailyBannerTitleText').textContent=t('dailyBannerTitle');
+  document.getElementById('dailyBannerSubText').textContent=t('dailyBannerSub');
   const badge=document.querySelector('.diff-choice[data-d="easy"] .beginner-badge');
   if(badge) badge.textContent=t('beginnerBadge');
 
