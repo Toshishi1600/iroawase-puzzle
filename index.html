@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="app-version" content="1.12.1">
+<meta name="app-version" content="1.12.2">
 <title>いろあわせパズル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -866,7 +866,7 @@ const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
 
 // ---------- みんなのランキング(Supabase) ----------
 // ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
-const APP_VERSION='1.12.1';
+const APP_VERSION='1.12.2';
 
 const SUPABASE_URL='https://dhpgvwedrjognkrtfpgx.supabase.co/rest/v1/'; // 花しらべと同じプロジェクト(puzzleスキーマ)
 const SUPABASE_KEY='sb_publishable_csp1n0xwQNqVUHy8gLMP0A_3IoqphS5';
@@ -894,7 +894,7 @@ function storeSession(session){
 }
 // ---------- ロボット確認(Cloudflare Turnstile。花しらべと 同じ Supabase の 設定に 合わせる) ----------
 // ・はじめて 遊ぶ人(まだ 匿名サインインしていない人)は、ページを 開いた 時に 裏で 先に 確認しておく
-// ・ふつうは 何も 出ない。あやしい 時だけ「人間です」の チェックが 画面の 下に 出る
+// ・ふつうは 何も 出ない。あやしい 時だけ、画面の まんなかの ポップアップで「人間です」の チェックが 出る
 // ・TURNSTILE_SITE_KEY が 空の あいだは、確認を しない(今まで通り 動く)
 const TURNSTILE_SITE_KEY='0x4AAAAAAFepBugVhJcGNTlH'; // Cloudflare Turnstile の「サイトの鍵」(公開してよい鍵)。花しらべと 同じ 鍵を 入れる
 let captchaWidgetId=null, captchaToken=null, captchaWaiters=[], captchaLoading=null;
@@ -914,17 +914,25 @@ function loadTurnstile(){
 async function renderCaptcha(){
   await loadTurnstile();
   if(captchaWidgetId!==null) return;
-  const box=document.createElement('div');
-  box.style.cssText='position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9999;';
-  document.body.appendChild(box);
+  // 「人間です」の チェックが 必要な 時だけ、画面の まんなかに 出す ポップアップ
+  const overlay=document.createElement('div');
+  overlay.style.cssText='display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+  overlay.innerHTML='<div role="dialog" aria-modal="true" style="width:100%;max-width:360px;box-sizing:border-box;background:#fff;border-radius:20px;padding:22px 16px 18px;text-align:center;color:#222;">'
+    +'<div style="font-size:19px;font-weight:900;">🤖 ロボットでないことの 確認</div>'
+    +'<div style="font-size:15px;line-height:1.7;margin:6px 0 14px;">下の チェックを 押してね</div>'
+    +'<div class="captcha-widget" style="display:flex;justify-content:center;min-height:65px;"></div></div>';
+  document.body.appendChild(overlay);
+  const show=on=>{ overlay.style.display=on?'flex':'none'; };
   const flush=()=>{ const list=captchaWaiters; captchaWaiters=[]; list.forEach(w=>w()); };
-  captchaWidgetId=window.turnstile.render(box,{
+  captchaWidgetId=window.turnstile.render(overlay.querySelector('.captcha-widget'),{
     sitekey:TURNSTILE_SITE_KEY,
     appearance:'interaction-only',
     'refresh-expired':'auto',
-    callback:t=>{ captchaToken=t; flush(); },
+    'before-interactive-callback':()=>show(true),
+    'after-interactive-callback':()=>show(false),
+    callback:t=>{ captchaToken=t; show(false); flush(); },
     'expired-callback':()=>{ captchaToken=null; },
-    'error-callback':()=>{ captchaToken=null; flush(); }
+    'error-callback':()=>{ captchaToken=null; show(false); flush(); }
   });
 }
 function preloadCaptcha(){
