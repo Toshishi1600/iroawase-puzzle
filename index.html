@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="app-version" content="1.12.0">
+<meta name="app-version" content="1.12.1">
 <title>いろあわせパズル</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -866,7 +866,7 @@ const SYMBOLS=['●','■','▲','◆','★','✚','✖'];
 
 // ---------- みんなのランキング(Supabase) ----------
 // ※ バージョンを上げる時は、この値と<head>内のapp-versionメタタグの両方を書き換えること
-const APP_VERSION='1.12.0';
+const APP_VERSION='1.12.1';
 
 const SUPABASE_URL='https://dhpgvwedrjognkrtfpgx.supabase.co/rest/v1/'; // 花しらべと同じプロジェクト(puzzleスキーマ)
 const SUPABASE_KEY='sb_publishable_csp1n0xwQNqVUHy8gLMP0A_3IoqphS5';
@@ -892,11 +892,67 @@ function storeSession(session){
     }));
   }catch(e){}
 }
+// ---------- ロボット確認(Cloudflare Turnstile。花しらべと 同じ Supabase の 設定に 合わせる) ----------
+// ・はじめて 遊ぶ人(まだ 匿名サインインしていない人)は、ページを 開いた 時に 裏で 先に 確認しておく
+// ・ふつうは 何も 出ない。あやしい 時だけ「人間です」の チェックが 画面の 下に 出る
+// ・TURNSTILE_SITE_KEY が 空の あいだは、確認を しない(今まで通り 動く)
+const TURNSTILE_SITE_KEY=''; // Cloudflare Turnstile の「サイトの鍵」(公開してよい鍵)。花しらべと 同じ 鍵を 入れる
+let captchaWidgetId=null, captchaToken=null, captchaWaiters=[], captchaLoading=null;
+function loadTurnstile(){
+  if(captchaLoading) return captchaLoading;
+  captchaLoading=new Promise((resolve,reject)=>{
+    if(window.turnstile){ resolve(); return; }
+    const s=document.createElement('script');
+    s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async=true;
+    s.onload=()=>resolve();
+    s.onerror=()=>{ captchaLoading=null; reject(new Error('turnstile_load_failed')); };
+    document.head.appendChild(s);
+  });
+  return captchaLoading;
+}
+async function renderCaptcha(){
+  await loadTurnstile();
+  if(captchaWidgetId!==null) return;
+  const box=document.createElement('div');
+  box.style.cssText='position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9999;';
+  document.body.appendChild(box);
+  const flush=()=>{ const list=captchaWaiters; captchaWaiters=[]; list.forEach(w=>w()); };
+  captchaWidgetId=window.turnstile.render(box,{
+    sitekey:TURNSTILE_SITE_KEY,
+    appearance:'interaction-only',
+    'refresh-expired':'auto',
+    callback:t=>{ captchaToken=t; flush(); },
+    'expired-callback':()=>{ captchaToken=null; },
+    'error-callback':()=>{ captchaToken=null; flush(); }
+  });
+}
+function preloadCaptcha(){
+  if(!TURNSTILE_SITE_KEY) return;
+  renderCaptcha().catch(()=>{});
+}
+async function getCaptchaToken(){
+  if(!TURNSTILE_SITE_KEY) return undefined;
+  try{
+    await renderCaptcha();
+    if(!captchaToken){
+      await new Promise(resolve=>{
+        const timer=setTimeout(resolve,15000);
+        captchaWaiters.push(()=>{ clearTimeout(timer); resolve(); });
+      });
+    }
+    const t=captchaToken||undefined;
+    captchaToken=null; // 合格証は 1回しか 使えないので、次の 分を 裏で 用意しておく
+    try{ window.turnstile.reset(captchaWidgetId); }catch(e){}
+    return t;
+  }catch(e){ return undefined; }
+}
 async function signInAnonymously(){
+  const token=await getCaptchaToken();
   const res=await fetchWithTimeout(`${SUPABASE_AUTH_URL}signup`,{
     method:'POST',
     headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({})
+    body:JSON.stringify(token?{gotrue_meta_security:{captcha_token:token}}:{})
   },8000);
   if(!res.ok) throw new Error('anonymous sign-in failed: '+res.status);
   const data=await res.json();
@@ -937,6 +993,11 @@ async function ensureAuthSession(){
   const result=await authSessionPromise;
   authSessionPromise=null;
   return result;
+}
+// はじめて 遊ぶ人は、ロボット確認を 裏で 先に 始めておく(ランキングに 送る 時に 待たないように)
+if(!getStoredSession()){
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',preloadCaptcha);
+  else preloadCaptcha();
 }
 async function authHeaders(extra){
   const session=await ensureAuthSession();
