@@ -896,7 +896,7 @@ function storeSession(session){
 // ・はじめて 遊ぶ人(まだ 匿名サインインしていない人)は、ページを 開いた 時に 裏で 先に 確認しておく
 // ・ふつうは 何も 出ない。あやしい 時だけ「人間です」の チェックが 画面の 下に 出る
 // ・TURNSTILE_SITE_KEY が 空の あいだは、確認を しない(今まで通り 動く)
-const TURNSTILE_SITE_KEY=''; // Cloudflare Turnstile の「サイトの鍵」(公開してよい鍵)。花しらべと 同じ 鍵を 入れる
+const TURNSTILE_SITE_KEY='0x4AAAAAAFepBugVhJcGNTlH'; // Cloudflare Turnstile の「サイトの鍵」(公開してよい鍵)。花しらべと 同じ 鍵を 入れる
 let captchaWidgetId=null, captchaToken=null, captchaWaiters=[], captchaLoading=null;
 function loadTurnstile(){
   if(captchaLoading) return captchaLoading;
